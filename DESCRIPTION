@@ -19,3 +19,5 @@ NeedsCompilation: yes
 Packaged: 2019-06-12 22:16:39 UTC; limdd
 Author: David Lim [aut, cre] (<https://orcid.org/0000-0001-6403-4849>)
 Maintainer: David Lim <deelim@live.unc.edu>
+URL: https://github.com/limddavid/FSCseq
+BugReports: https://github.com/limddavid/FSCseq/issues
