@@ -1,0 +1,21 @@
+Package: FSCseq
+Title: Feature Selection and Clustering of RNA-seq Count Data
+Version: 0.0.1.0000
+Authors@R: 
+    person(given = "David",
+           family = "Lim",
+           role = c("aut", "cre"),
+           email = "deelim@live.unc.edu",
+           comment = c(ORCID = "https://orcid.org/0000-0001-6403-4849"))
+Description: Performs simultaneous feature selection and clustering of bulk RNA-seq gene expression count data using a penalized finite mixture model of negative binomials.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1.9000
+Imports: Rcpp (>= 0.11.0), RcppArmadillo, DESeq2, MASS, matrixStats, mclust
+LinkingTo: Rcpp, RcppArmadillo
+Suggests: testthat (>= 2.1.0)
+NeedsCompilation: yes
+Packaged: 2019-06-12 22:16:39 UTC; limdd
+Author: David Lim [aut, cre] (<https://orcid.org/0000-0001-6403-4849>)
+Maintainer: David Lim <deelim@live.unc.edu>
