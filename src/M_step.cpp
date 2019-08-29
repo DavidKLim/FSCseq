@@ -465,7 +465,6 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
       /* Hard coded coordinate-wise covar_beta: */
       for(int pp=0; pp<p; pp++){
         /* Xpp: X with p'th col removed, betapp: beta with p'th elt removed */
-        Rprintf("good4");
         arma::vec gammapp=gamma;
         
         arma::mat X_gammapp = X.cols(k,k+p-1);   // just covariates portion of design matrix
