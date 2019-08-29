@@ -167,8 +167,6 @@ E_step<-function(wts,l,pi,CEM,Tau){
 #' @param y_j vector of length n, expression of gene j
 #' @param XX matrix of dimension nk by k+p, design matrix
 #' @param k integer, number of clusters
-#' @param covars logical, TRUE: at least 1 covariate, FALSE: no covariates
-#' @param p integer, number of covariates in model
 #' @param offsets numeric vector of length n, subject-specific offsets
 #' @param wts matrix of dimension k by n, E step weights
 #' @param keep logical matrix of dimension k by n, whether a sample is included in calculation for cluster k
@@ -180,10 +178,10 @@ E_step<-function(wts,l,pi,CEM,Tau){
 #' @importFrom MASS theta.ml
 #'
 #' @export
-glm.init=function(j,y_j,XX,k,covars,p,offsets,wts,keep){
+glm.init=function(j,y_j,XX,k,offsets,wts,keep){
   ids = c(t(keep==1))  # PP filtering
 
-  init.fit = glm(as.integer(rep(y_j,k))[ids]~0+XX[ids,]+offset(rep(offsets,k)[ids]),family=poisson(link="log"),weights=c(t(wts))[ids])
+  init.fit = stats::glm(as.integer(rep(y_j,k))[ids]~0+XX[ids,]+offset(rep(offsets,k)[ids]),family=poisson(link="log"),weights=c(t(wts))[ids])
   coefs_j = log2(exp(init.fit$coefficients))         # change to log2 scale
 
   coefs_j[is.na(coefs_j)] = 0
@@ -205,6 +203,7 @@ glm.init=function(j,y_j,XX,k,covars,p,offsets,wts,keep){
   return(results)
 }
 
+
 #' Parallelized glm.init
 #'
 #' Uses glm() and phi_ml_g() functions to initialize
@@ -222,7 +221,7 @@ glm.init=function(j,y_j,XX,k,covars,p,offsets,wts,keep){
 glm.init_par=function(j){
   ids = c(t(keep==1))  # PP filtering
 
-  init.fit = glm(as.integer(rep(y[j,],k))[ids]~0+XX[ids,]+offset(rep(offsets,k)[ids]),family=poisson(link="log"),weights=c(t(wts))[ids])
+  init.fit = stats::glm(as.integer(rep(y[j,],k))[ids]~0+XX[ids,]+offset(rep(offsets,k)[ids]),family=poisson(link="log"),weights=c(t(wts))[ids])
   coefs_j = log2(exp(init.fit$coefficients))         # change to log2 scale
 
   coefs_j[is.na(coefs_j)] = 0
@@ -253,17 +252,18 @@ glm.init_par=function(j){
 #'
 #' @export
 M_step_par = function(j){
-  if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
-    return(par_X[[j]])
-  }} else{
-    res = FSCseq::M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
-                         all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
-                         theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-                         cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
-                         lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
-                         optim_method=optim_method)
-    return(res)
-  }
+  if(Tau<=1 & a>6){
+    if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
+      res=par_X[[j]]
+      return(res)
+    }}
+  res = M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+               all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
+               theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
+               cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
+               optim_method=optim_method)
+  return(res)
 }
 
 #' Wrapper for main FSCseq function
@@ -386,7 +386,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   if(trace){
     cat(paste(sprintf("n=%d, g=%d, k=%d, l=%f, alph=%f, ",n,g,k,lambda,alpha),"\n"))
     cat("True clusters:\n")
-    write.table(true_clusters,quote=F,col.names=F)
+    write.table(head(true_clusters,n=3),quote=F,col.names=F)
+    write.table(tail(true_clusters,n=3),quote=F,col.names=F)
   }
 
   init_Tau=1               # Tau=1 is classic EM. If CEM, then if k=1 or if there are initial clusters input
@@ -731,17 +732,23 @@ EM_run <- function(ncores,X=NA, y, k,
       } else{
         # Initialization
         if(ncores>1){
+
           # parallelized Poisson glm + phi_ml_g initialization
           clust = makeCluster(ncores)
           clusterEvalQ(cl=clust,library(FSCseq))
           clusterExport(cl=clust,varlist=c("keep","y","XX","k","offsets","wts"),envir=environment())
           par_init_fit = parallel::parLapply(clust, 1:g, glm.init_par)
           stopCluster(clust)
+
+          all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))
+          coefs=all_init_params[,1:(ncol(all_init_params)-1)]
+          phi_g=all_init_params[,ncol(all_init_params)]
+          phi=matrix(rep(phi_g,k),ncol=k)
         } else{
           # regular for loop Poisson glm + phi_ml_g init
           for(j in 1:g){
             #j,y_j,XX,k,covars,p,offsets,wts,keep
-            init_fit=glm.init(j,y[j,],XX,k,covars,p,offsets,wts,keep)
+            init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
             coefs[j,]=init_fit$coefs_j
             phi[j,]=rep(init_fit$phi_g,k)
             phi_g[j]=init_fit$phi_g
@@ -760,7 +767,16 @@ EM_run <- function(ncores,X=NA, y, k,
       }
 
       end=as.numeric(Sys.time())
-      if(trace){cat(paste("Parameter Estimates Initialization Time Elapsed:",end-start,"seconds.\n"))}
+      if(trace){
+        cat(paste("Parameter Estimates Initialization Time Elapsed:",end-start,"seconds.\n"))
+        cat(paste("Initial coefs (top/bottom 3):\n"))
+        write.table(head(coefs,n=3),quote=F)
+        write.table(tail(coefs,n=3),quote=F)
+        cat(paste("Initial phi (top/bottom 3):\n"))
+        write.table(head(phi,n=3),quote=F)
+        write.table(tail(phi,n=3),quote=F)
+
+      }
     }
 
     Mstart=as.numeric(Sys.time())
@@ -812,7 +828,7 @@ EM_run <- function(ncores,X=NA, y, k,
           if(any(is.na(coefs[j,]))){cat(paste("coefs for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
         }
         ###### re-initialize gene j with glm.nb() ######
-        init_fit=init_fit=glm.init(j,y[j,],XX,k,covars,p,offsets,wts,keep)
+        init_fit=init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
         coefs[j,]=init_fit$coefs_j
         phi[j,]=rep(init_fit$phi_g,k)
         phi_g[j]=init_fit$phi_g

@@ -4,7 +4,7 @@
 \alias{glm.init}
 \title{Initializes parameter estimates}
 \usage{
-glm.init(j, y_j, XX, k, covars, p, offsets, wts, keep)
+glm.init(j, y_j, XX, k, offsets, wts, keep)
 }
 \arguments{
 \item{j}{integer, gene index j}
@@ -14,10 +14,6 @@ glm.init(j, y_j, XX, k, covars, p, offsets, wts, keep)
 \item{XX}{matrix of dimension nk by k+p, design matrix}
 
 \item{k}{integer, number of clusters}
-
-\item{covars}{logical, TRUE: at least 1 covariate, FALSE: no covariates}
-
-\item{p}{integer, number of covariates in model}
 
 \item{offsets}{numeric vector of length n, subject-specific offsets}
 
