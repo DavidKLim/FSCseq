@@ -753,7 +753,7 @@ EM_run <- function(ncores,X=NA, y, k,
           }
 
           all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))
-          coefs=all_init_params[,1:(ncol(all_init_params)-1)]
+          coefs=matrix(all_init_params[,1:(ncol(all_init_params)-1)],ncol=ncol(all_init_params)-1)
           phi_g=all_init_params[,ncol(all_init_params)]
           phi=matrix(rep(phi_g,k),ncol=k)
         } else{
