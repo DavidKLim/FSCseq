@@ -747,7 +747,9 @@ EM_run <- function(ncores,X=NA, y, k,
             stopCluster(clust)
           } else{
             ## use mclapply for others (Linux/Debian/Mac) ##
-            par_init_fit = parallel::mclapply(1:g,glm.init_par,mc.cores=ncores)
+            par_init_fit = parallel::mclapply(1:g, mc.cores=1, FUN= function(j){
+                                                                     glm.init(j,y[j,],XX,k,offsets,wts,keep)
+                                                                      })
           }
 
           all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))
@@ -805,7 +807,14 @@ EM_run <- function(ncores,X=NA, y, k,
         stopCluster(clust)
       } else{
         ## use mclapply for others (Linux/Debian/Mac) ##
-        par_X = parallel::mclapply(1:g,M_step_par,mc.cores=ncores)
+        par_X = parallel::mclapply(1:g, mc.cores=ncores, FUN= function(j){
+                                          M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+                                                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
+                                                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
+                                                cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+                                                lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
+                                                optim_method=optim_method)
+                                                                })
       }
     } else{
       # regular M_step for loop across genes
@@ -881,13 +890,12 @@ EM_run <- function(ncores,X=NA, y, k,
         })
       } else{LFCs[,a]=rep(0,g)}
     }
-
-
     # all_temp_list[[a]] = temp_list
     # all_theta_list[[a]] = theta_list
-
     # Marker of all nondisc genes (T for disc, F for nondisc)
-    if(trace){cat(paste("Disc genes:",sum(disc_ids),"of",g,"genes.\n"))}
+    if(trace){
+      cat(paste("Disc genes:",sum(disc_ids),"of",g,"genes.\n"))
+      }
     disc_ids_list[[a]] = disc_ids
 
     if(cl_phi==1){
