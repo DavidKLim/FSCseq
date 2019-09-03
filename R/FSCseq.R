@@ -537,12 +537,17 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 
   }
 
+
   # if init_method="max": will have specified init_cls, init_parms=T, init_coefs, and init_phi
   # if init_method="emaEM": will have specified init_cls, init_parms=F. init_wts will remain NULL
   # if init_method="BIA": will have specified init_wts, init_parms=F. init_cls will remain NULL
+
+  # CEM is set to F for final run to convergence. If inits were searched by
+  # CEM, then temperature would have already reached 1 --> no need for CEM.
+  # no inits searched for K=1 --> CEM and EM are equivalent for K=1.
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
-                 init_cls=init_cls,init_wts=init_wts,CEM=CEM,init_Tau=init_Tau,
+                 init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
                  maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method)
 
   if(trace){
