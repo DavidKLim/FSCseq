@@ -266,6 +266,36 @@ M_step_par = function(j){
   return(res)
 }
 
+#' Parallelized M step (mclapply)
+#'
+#' Runs M_step() for gene j. Used to compute in parallel on ncores (specified in wrapper)
+#'
+#' @param j gene index
+#'
+#' @return Same output as M_step() function
+#'
+#' @export
+M_step_par2 = function(j, XX, y, p, a, k,
+                      wts, keep, offsets,
+                      theta_list, coefs, phi,
+                      cl_phi, est_phi, est_covar,
+                      lambda, alpha, IRLS_tol, maxit_IRLS,
+                      optim_method, Tau, disc_ids_list, par_X){
+  if(Tau<=1 & a>6){
+    if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
+      res=par_X[[j]]
+      return(res)
+    }}
+  res = M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+               all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
+               theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
+               cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
+               optim_method=optim_method)
+  return(res)
+}
+
+
 #' Wrapper for main FSCseq function
 #'
 #' Determine and search HC, KM, and random initializations by BIC,
@@ -747,13 +777,13 @@ EM_run <- function(ncores,X=NA, y, k,
             stopCluster(clust)
           } else{
             ## use mclapply for others (Linux/Debian/Mac) ##
-            par_init_fit = parallel::mclapply(1:g, mc.cores=1, FUN= function(j){
+            par_init_fit = parallel::mclapply(1:g, mc.cores=ncores, FUN= function(j){
                                                                      glm.init(j,y[j,],XX,k,offsets,wts,keep)
                                                                       })
           }
 
-          all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))
-          coefs=matrix(all_init_params[,1:(ncol(all_init_params)-1)],ncol=ncol(all_init_params)-1)
+          all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))  # k+p+1 cols
+          coefs=matrix(all_init_params[,1:(k+p)],ncol=(k+p))
           phi_g=all_init_params[,ncol(all_init_params)]
           phi=matrix(rep(phi_g,k),ncol=k)
         } else{
@@ -808,13 +838,13 @@ EM_run <- function(ncores,X=NA, y, k,
       } else{
         ## use mclapply for others (Linux/Debian/Mac) ##
         par_X = parallel::mclapply(1:g, mc.cores=ncores, FUN= function(j){
-                                          M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
-                                                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
-                                                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-                                                cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
-                                                lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
-                                                optim_method=optim_method)
-                                                                })
+          M_step_par2(j, XX, y, p, a, k,
+                      wts, keep, offsets,
+                      theta_list, coefs, phi,
+                      cl_phi, est_phi, est_covar,
+                      lambda, alpha, IRLS_tol, maxit_IRLS,
+                      optim_method, Tau, disc_ids_list, par_X)
+        })
       }
     } else{
       # regular M_step for loop across genes
