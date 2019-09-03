@@ -610,7 +610,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' LFCs: matrix of dimension g by maxit_EM of LFCs (max-min)/(k-1)
 #'
 #' @importFrom mclust adjustedRandIndex
-#' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply
+#' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
 #'
 #' @export
 EM_run <- function(ncores,X=NA, y, k,
@@ -737,13 +737,18 @@ EM_run <- function(ncores,X=NA, y, k,
       } else{
         # Initialization
         if(ncores>1){
-
           # parallelized Poisson glm + phi_ml_g initialization
-          clust = makeCluster(ncores)
-          clusterEvalQ(cl=clust,library(FSCseq))
-          clusterExport(cl=clust,varlist=c("keep","y","XX","k","offsets","wts"),envir=environment())
-          par_init_fit = parallel::parLapply(clust, 1:g, glm.init_par)
-          stopCluster(clust)
+          if(Sys.info()[['sysname']]=="Windows"){
+            ## use mclapply for Windows ##
+            clust = makeCluster(ncores)
+            clusterEvalQ(cl=clust,library(FSCseq))
+            clusterExport(cl=clust,varlist=c("keep","y","XX","k","offsets","wts"),envir=environment())
+            par_init_fit = parallel::parLapply(clust, 1:g, glm.init_par)
+            stopCluster(clust)
+          } else{
+            ## use mclapply for others (Linux/Debian/Mac) ##
+            par_init_fit = parallel::mclapply(1:g,glm.init_par,mc.cores=ncores)
+          }
 
           all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))
           coefs=all_init_params[,1:(ncol(all_init_params)-1)]
@@ -788,14 +793,20 @@ EM_run <- function(ncores,X=NA, y, k,
 
     if(ncores>1){
       # M_step parallelized across ncores
-      clust = makeCluster(ncores)
-      clusterEvalQ(cl=clust,library(FSCseq))
-      clusterExport(cl=clust,varlist=c("XX","y","p","a","k","wts","keep","offsets",
-                                       "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
-                                       "lambda","alpha","IRLS_tol","maxit_IRLS","optim_method",
-                                       "disc_ids_list","Tau","par_X"),envir=environment())
-      par_X = parallel::parLapply(clust, 1:g, M_step_par)
-      stopCluster(clust)
+      if(Sys.info()[['sysname']]=="Windows"){
+        ## use parLapply for Windows ##
+        clust = makeCluster(ncores)
+        clusterEvalQ(cl=clust,library(FSCseq))
+        clusterExport(cl=clust,varlist=c("XX","y","p","a","k","wts","keep","offsets",
+                                         "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
+                                         "lambda","alpha","IRLS_tol","maxit_IRLS","optim_method",
+                                         "disc_ids_list","Tau","par_X"),envir=environment())
+        par_X = parallel::parLapply(clust, 1:g, M_step_par)
+        stopCluster(clust)
+      } else{
+        ## use mclapply for others (Linux/Debian/Mac) ##
+        par_X = parallel::mclapply(1:g,M_step_par,mc.cores=ncores)
+      }
     } else{
       # regular M_step for loop across genes
       for(j in 1:g){
