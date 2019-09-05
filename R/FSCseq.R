@@ -755,6 +755,9 @@ EM_run <- function(ncores,X=NA, y, k,
   cl_agreement = rep(NA,maxit_EM)
   par_X=rep(list(list()),g)         # store M_step results
 
+  n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
+    }else{1}
+
 
   ########### M / E STEPS #########
   for(a in 1:maxit_EM){
@@ -833,8 +836,7 @@ EM_run <- function(ncores,X=NA, y, k,
     # M step
     Mstart=as.numeric(Sys.time())
 
-    # minibatching starts at iteration 3 (let EM stabilize first)
-    if(!is.null(mb_size))
+    # minibatching starts at iteration 5 (let EM stabilize first)
     if(a<5){
       mb_genes = 1:g
     } else{
@@ -1015,11 +1017,15 @@ EM_run <- function(ncores,X=NA, y, k,
     Q[a]<- (log(pi)%*%rowSums(wts)) + sum(wts*l)
 
     # break condition for EM
-    if(a>5){if(cl_agreement[a]==1 & abs((Q[a]-Q[a-5])/Q[a])<EM_tol){
-      # stop conditions: relative difference in Q within EM_tol and clusters stop changing
-      finalwts<-wts
-      break
-    }}
+    if(a>n_mb){
+      if(cl_agreement[a]==1){
+        if(abs((Q[a]-Q[a-n_mb])/Q[a-n_mb])<EM_tol){
+          # stop conditions: relative difference in Q within EM_tol and clusters stop changing
+          # n_mb = g/mb_size, or number of minibatches that g can contain (rounded up/ceiling)
+          # check Q function convergence across n_mb iterations. if mb_size = g/5, then check every 5 iters
+          finalwts<-wts
+          break
+    }}}
     if(a==maxit_EM){
       finalwts<-wts
       if(trace){warning("Reached max iterations.")}
