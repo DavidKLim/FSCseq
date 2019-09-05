@@ -620,7 +620,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param disp string, either "gene" (default) or "cluster"
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #' @param optim_method string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)
-#' @param mb_size integer, size of minibatch
 #'
 #' @return FSCseq object: list containing outputs
 #' k: integer order,
@@ -756,7 +755,7 @@ EM_run <- function(ncores,X=NA, y, k,
   par_X=rep(list(list()),g)         # store M_step results
 
   n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
-    }else{1}
+  }else{1}
 
 
   ########### M / E STEPS #########
@@ -842,7 +841,7 @@ EM_run <- function(ncores,X=NA, y, k,
     } else{
       if(!is.null(mb_size)){
         mb_genes = sample(1:g,mb_size,replace=F)
-      }
+      } else{ mb_genes=1:g}
     }
 
     if(ncores>1){
@@ -953,11 +952,11 @@ EM_run <- function(ncores,X=NA, y, k,
         } else{
           est_phi[j]=1
         }
-        if(trace){
-          cat(paste("#genes to continue est. phi next iter:",sum(est_phi),".\n"))
-          cat(paste("Avg % diff in phi est (across 5 its) gene 1 = ",diff_phi[a,1],"\n"))
-        }
       }
+    }
+    if(trace){
+      cat(paste("#genes to continue est. phi next iter:",sum(est_phi),".\n"))
+      cat(paste("Avg % diff in phi est (across 5 its) gene 1 = ",diff_phi[a,1],"\n"))
     }
 
     # all_temp_list[[a]] = temp_list
@@ -1025,7 +1024,7 @@ EM_run <- function(ncores,X=NA, y, k,
           # check Q function convergence across n_mb iterations. if mb_size = g/5, then check every 5 iters
           finalwts<-wts
           break
-    }}}
+        }}}
     if(a==maxit_EM){
       finalwts<-wts
       if(trace){warning("Reached max iterations.")}
@@ -1043,11 +1042,11 @@ EM_run <- function(ncores,X=NA, y, k,
     # Diagnostics Tracking
     current_clusters = apply(wts,2,which.max)
 
-    if(length(unique(current_clusters))<k & length(unique(prev_clusters))<k){
-      finalwts=wts
+    if(length(unique(current_clusters))<k & length(unique(prev_clusters))<k & !lower_K){
+      # finalwts=wts
       lower_K=TRUE
-      warning(sprintf("EM iteration ended at iter%d, suboptimal order (choose higher K)",a))
-      break
+      warning(sprintf("Fewer than k clusters after iter%d",a))
+      # break
     }
 
     #print(current_clusters)
@@ -1107,14 +1106,6 @@ EM_run <- function(ncores,X=NA, y, k,
     m<-rep(0,times=g)
     for(j in 1:g){
       m[j]=length(unique(theta_list[[j]][1,]))
-      # m_row=rep(0,k)
-      # for(c in 1:k){
-      #   m_row[c] <- sum(theta_list[[j]][c,]!=0) + 1         # of parameters estimated
-      # }
-      # m[j]=min(m_row)
-      # if(any(coefs[j,] %in% c(-100,100))){
-      #   m[j]=m[j]+(sum(coefs[j,] %in% c(-100,100))-1)
-      # }
       if(m[j]==1){nondiscriminatory[j]=TRUE}
     }
   }
@@ -1130,13 +1121,13 @@ EM_run <- function(ncores,X=NA, y, k,
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
   BIC = -2*log_L + log(n)*num_est_params
 
-  if(lower_K){
-    BIC=NA
-    if(trace){
-      print("Choose lower K. clusters identified: cls")
-      print(unique(current_clusters))
-    }
-  }
+  # if(lower_K){
+  #   BIC=NA
+  #   if(trace){
+  #     print("Choose lower K. clusters identified: cls")
+  #     print(unique(current_clusters))
+  #   }
+  # }
 
   if(trace){
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
@@ -1171,6 +1162,24 @@ EM_run <- function(ncores,X=NA, y, k,
 
   if(cl_phi==0){
     phi = phi_g
+  }
+
+  if(length(unique(final_clusters))<k){
+    # remaining clusters at end of EM (in ascending order)
+    remaining_cls = unique(final_clusters)[order(unique(final_clusters))]
+
+    # change k to # of cls remaining
+    k=length(remaining_cls)
+
+    # subset params to just remaining cls
+    pi=pi[remaining_cls]
+    if(p>0){new_coefs = cbind(coefs[,remaining_cls],coefs[,(k+1):(k+p)])
+    } else{ new_coefs = coefs[,remaining_cls]}
+    coefs=new_coefs
+
+    if(cl_phi==1){
+      phi = phi[,remaining_cls]
+    }
   }
 
   result<-list(k=k,

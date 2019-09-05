@@ -59,8 +59,6 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
 \item{optim_method}{string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)}
-
-\item{mb_size}{integer, size of minibatch}
 }
 \value{
 FSCseq object: list containing outputs
