@@ -257,7 +257,7 @@ M_step_par = function(j){
       res=par_X[[j]]
       return(res)
     }}
-  res = M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+  res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
@@ -286,7 +286,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
       res=par_X[[j]]
       return(res)
     }}
-  res = M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+  res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
@@ -328,6 +328,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param method string, either "EM" (default) or "CEM"
 #' @param init_temp numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
+#' @param mb_size minibatch size: # of genes to include per M step iteration
 #'
 #' @return list containing outputs from EM_run() function
 #'
@@ -345,7 +346,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-6,
                  disp=c("gene","cluster"),optim_method="direct",
-                 method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL){
+                 method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL,
+                 mb_size=NULL){
 
   # y: raw counts
   # k: #clusters
@@ -495,7 +497,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       fit = EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                    init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                    init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
-                   maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method)
+                   maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
+                   mb_size=mb_size)
       all_fits [[i]] = fit
       init_cls_BIC[i] <- fit$BIC
     }
@@ -578,7 +581,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
-                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method)
+                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
+                 mb_size=mb_size)
 
   if(trace){
     if(!is.null(trace.file)){
@@ -616,6 +620,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param disp string, either "gene" (default) or "cluster"
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #' @param optim_method string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)
+#' @param mb_size integer, size of minibatch
 #'
 #' @return FSCseq object: list containing outputs
 #' k: integer order,
@@ -653,7 +658,8 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
-                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-6,disp,trace=F,optim_method="direct"){
+                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-6,disp,trace=F,optim_method="direct",
+                   mb_size=NULL){
 
   start_time <- Sys.time()
 
@@ -754,6 +760,7 @@ EM_run <- function(ncores,X=NA, y, k,
   for(a in 1:maxit_EM){
     EMstart= as.numeric(Sys.time())
 
+    prev_clusters = apply(wts,2,which.max)     # set previous clusters (or initial if a=1)
     if(a==1){         # Initializations for 1st EM iteration
       start=as.numeric(Sys.time())
       if(init_parms){
@@ -778,8 +785,8 @@ EM_run <- function(ncores,X=NA, y, k,
           } else{
             ## use mclapply for others (Linux/Debian/Mac) ##
             par_init_fit = parallel::mclapply(1:g, mc.cores=ncores, FUN= function(j){
-                                                                     glm.init(j,y[j,],XX,k,offsets,wts,keep)
-                                                                      })
+              glm.init(j,y[j,],XX,k,offsets,wts,keep)
+            })
           }
 
           all_init_params=t(sapply(par_init_fit,function(x) {c(x$coefs_j,x$phi_g)}))  # k+p+1 cols
@@ -817,11 +824,24 @@ EM_run <- function(ncores,X=NA, y, k,
         cat(paste("Initial phi (top/bottom 3):\n"))
         write.table(head(phi,n=3),quote=F)
         write.table(tail(phi,n=3),quote=F)
-
+        if(!is.null(true_clusters) & !is.null(true_clusters)){
+          cat(paste("Initial ARI:",adjustedRandIndex(prev_clusters,true_clusters),"\n"))
+        }
       }
     }
 
+    # M step
     Mstart=as.numeric(Sys.time())
+
+    # minibatching starts at iteration 3 (let EM stabilize first)
+    if(!is.null(mb_size))
+    if(a<5){
+      mb_genes = 1:g
+    } else{
+      if(!is.null(mb_size)){
+        mb_genes = sample(1:g,mb_size,replace=F)
+      }
+    }
 
     if(ncores>1){
       # M_step parallelized across ncores
@@ -833,11 +853,11 @@ EM_run <- function(ncores,X=NA, y, k,
                                          "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
                                          "lambda","alpha","IRLS_tol","maxit_IRLS","optim_method",
                                          "disc_ids_list","Tau","par_X"),envir=environment())
-        par_X = parallel::parLapply(clust, 1:g, M_step_par)
+        par_X_mb = parallel::parLapply(clust, mb_genes, M_step_par)
         stopCluster(clust)
       } else{
         ## use mclapply for others (Linux/Debian/Mac) ##
-        par_X = parallel::mclapply(1:g, mc.cores=ncores, FUN= function(j){
+        par_X_mb = parallel::mclapply(mb_genes, mc.cores=ncores, FUN= function(j){
           M_step_par2(j, XX, y, p, a, k,
                       wts, keep, offsets,
                       theta_list, coefs, phi,
@@ -846,11 +866,12 @@ EM_run <- function(ncores,X=NA, y, k,
                       optim_method, Tau, disc_ids_list, par_X)
         })
       }
+      par_X[mb_genes] = par_X_mb     # replace minibatch results
     } else{
       # regular M_step for loop across genes
-      for(j in 1:g){
+      for(j in mb_genes){
         if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
-        par_X[[j]] <- M_step(X=XX, y_j=rep(y[j,],k), p=p, j=j, a=a, k=k,
+        par_X[[j]] <- M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                                      all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                                      theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                                      cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
@@ -863,7 +884,7 @@ EM_run <- function(ncores,X=NA, y, k,
     if(trace){cat(paste("M Step Time Elapsed:",Mend-Mstart,"seconds.\n"))}
 
 
-    for(j in 1:g){
+    for(j in mb_genes){
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
       coefs[j,] <- par_X[[j]]$coefs_j
       theta_list[[j]] <- par_X[[j]]$theta_j
@@ -877,92 +898,88 @@ EM_run <- function(ncores,X=NA, y, k,
       }
 
       ### IF any coefs/phi unstable --> missing after M step, re-initialize via glm.nb() for just that gene
-      if(any(is.na(coefs[j,])) | any(is.na(phi[j,]))){
-        if(trace){
-          if(any(is.na(phi[j,]))){cat(paste("Phi for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
-          if(any(is.na(coefs[j,]))){cat(paste("coefs for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
-        }
-        ###### re-initialize gene j with glm.nb() ######
-        init_fit=init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
-        coefs[j,]=init_fit$coefs_j
-        phi[j,]=rep(init_fit$phi_g,k)
-        phi_g[j]=init_fit$phi_g
-        theta<-matrix(rep(0,times=k^2),nrow=k)
-        for(c in 1:k){
-          for(cc in 1:k){
-            theta[c,cc]<-SCAD_soft_thresholding(coefs[j,c]-coefs[j,cc],lambda,alpha)
-          }
-        }
-        theta_list[[j]] <- theta
-        disc_ids[j]=any(theta_list[[j]]!=0)
-      }
-
+      # if(any(is.na(coefs[j,])) | any(is.na(phi[j,]))){
+      #   if(trace){
+      #     if(any(is.na(phi[j,]))){cat(paste("Phi for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
+      #     if(any(is.na(coefs[j,]))){cat(paste("coefs for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
+      #   }
+      #   ###### re-initialize gene j with glm.nb() ######
+      #   init_fit=init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
+      #   coefs[j,]=init_fit$coefs_j
+      #   phi[j,]=rep(init_fit$phi_g,k)
+      #   phi_g[j]=init_fit$phi_g
+      #   theta<-matrix(rep(0,times=k^2),nrow=k)
+      #   for(c in 1:k){
+      #     for(cc in 1:k){
+      #       theta[c,cc]<-SCAD_soft_thresholding(coefs[j,c]-coefs[j,cc],lambda,alpha)
+      #     }
+      #   }
+      #   theta_list[[j]] <- theta
+      #   disc_ids[j]=any(theta_list[[j]]!=0)
+      # }
       ### correct numerical inconsistency in gene-disp (fusion occurs, but slightly different cluster means)
       ### inconsistencies on the order of 1e-7 to 1e-8: won't add much bias to equate them
-      if(cl_phi==0){
-        theta0=which(theta_list[[j]]==0,arr.ind=TRUE)
-        fused_pairs=theta0[(theta0[,1]!=theta0[,2]),]
-        fused_pairs=t(apply(fused_pairs,1,sort))
-        fused_pairs[!duplicated(fused_pairs),]
-        if(ncol(fused_pairs)!=0){
-          for(fused_c in 1:nrow(fused_pairs)){                            # set coefs equal
-            coefs[j,fused_pairs[fused_c,2]] = coefs[j,fused_pairs[fused_c,1]]
-          }
-        }
-      }
+      # if(cl_phi==0){
+      #   theta0=which(theta_list[[j]]==0,arr.ind=TRUE)
+      #   fused_pairs=theta0[(theta0[,1]!=theta0[,2]),]
+      #   fused_pairs=t(apply(fused_pairs,1,sort))
+      #   fused_pairs[!duplicated(fused_pairs),]
+      #   if(ncol(fused_pairs)!=0){
+      #     for(fused_c in 1:nrow(fused_pairs)){                            # set coefs equal
+      #       coefs[j,fused_pairs[fused_c,2]] = coefs[j,fused_pairs[fused_c,1]]
+      #     }
+      #   }
+      # }
 
-      if(k>1){
-        tryCatch({
-          LFCs[j,a] = (max(coefs[j,1:k])-min(coefs[j,1:k]))/(k-1)
-        }, error=function(err){
-          if(trace){cat(paste("LFCs for gene",j,"could not be calculated?"))}
-          LFCs[j,a] = NA
-        })
-      } else{LFCs[,a]=rep(0,g)}
-    }
-    # all_temp_list[[a]] = temp_list
-    # all_theta_list[[a]] = theta_list
-    # Marker of all nondisc genes (T for disc, F for nondisc)
-    if(trace){
-      cat(paste("Disc genes:",sum(disc_ids),"of",g,"genes.\n"))
-      }
-    disc_ids_list[[a]] = disc_ids
+      # calculate LFCs (should just be 0 if k=1)
+      LFCs[j,a] = max(coefs[j,1:k])-min(coefs[j,1:k])
 
-    if(cl_phi==1){
-      phi_list[[a]] <- phi
-    } else if(cl_phi==0){
-      phi_list[[a]] <- phi_g
-    }
-
-    if(a>6){
-      for(j in 1:g){
+      if(a>6){
+        # set relative change in phi across 5 iterations
         if(cl_phi==1){
-          diff_phi[a,j]=mean(abs(phi_list[[a]][j,]-phi_list[[a-5]][j,])/phi_list[[a-5]][j,])
+          diff_phi[a,j]=mean(abs(phi[j,]-phi_list[[a-5]][j,])/phi_list[[a-5]][j,])
         } else if(cl_phi==0){
-          diff_phi[a,j]=abs(phi_list[[a]][j]-phi_list[[a-5]][j])/phi_list[[a-5]][j]
+          diff_phi[a,j]=abs(phi_g[j]-phi_list[[a-5]][j,1])/phi_list[[a-5]][j,1]
         }
 
-        if(is.infinite(diff_phi[a,j]) | is.na(diff_phi[a,j])){
-          diff_phi[a,j]=1
-        }
+        # if(is.infinite(diff_phi[a,j]) | is.na(diff_phi[a,j])){
+        #   diff_phi[a,j]=1
+        # }
 
         if(diff_phi[a,j]<0.01 & all(current_clusters==prev_clusters)){
           est_phi[j]=0
         } else{
           est_phi[j]=1
         }
-      }
-      if(trace){
-        cat(paste("#genes to continue est. phi next iter:",sum(est_phi),".\n"))
-        cat(paste("Avg % diff in phi est (across 5 its) gene 1 = ",diff_phi[a,1],"\n"))
+        if(trace){
+          cat(paste("#genes to continue est. phi next iter:",sum(est_phi),".\n"))
+          cat(paste("Avg % diff in phi est (across 5 its) gene 1 = ",diff_phi[a,1],"\n"))
+        }
       }
     }
 
-    coefs_list[[a]] = coefs
-    if(a>1){
-      MSE_coefs[a]=sum(abs((coefs_list[[a]]-coefs_list[[a-1]])))/(ncol(coefs)*nrow(coefs))
-      if(trace){cat(paste("MSE_coef:",MSE_coefs[a],"\n"))}
+    # all_temp_list[[a]] = temp_list
+    # all_theta_list[[a]] = theta_list
+
+    # Marker of all nondisc genes (T for disc, F for nondisc)
+    if(trace){
+      cat(paste("Disc genes:",sum(disc_ids),"of",g,"genes.\n"))
     }
+
+    # save current objects in lists (to track)
+    disc_ids_list[[a]] = disc_ids
+    phi_list[[a]] <- phi
+    #coefs_list[[a]] = coefs       # don't need coefs_list: save some time/memory
+
+
+    if(a>1){
+      #MSE_coefs[a]=mean(abs((coefs_list[[a]]-coefs_list[[a-1]])))
+      MSE_coefs[a] = mean(abs(coefs-prev_coefs))
+      if(trace){cat(paste("MSE_coef:",MSE_coefs[a],"\n"))}
+      cl_agreement[a] = mean(current_clusters==prev_clusters)
+    }
+
+    prev_coefs = coefs    # store prev coefs for comparison in MSE_coefs next iteration
 
     # update on pi_hat, and UB & LB on pi
     for(c in 1:k){
@@ -975,17 +992,6 @@ EM_run <- function(ncores,X=NA, y, k,
         if(trace){warning(paste("cluster proportion", c, "close to 1"))}
         pi[c]=(1-1E-6)
       } # upperbound for pi
-    }
-
-    prev_clusters<-rep(0,times=n)
-    for(i in 1:n){
-      prev_clusters[i]<-which.max(wts[,i])
-    }
-    if(a==1 & !is.null(true_clusters) & !is.null(true_clusters)){
-      if(trace){cat(paste("Initial ARI:",adjustedRandIndex(prev_clusters,true_clusters),"\n"))}
-    }
-    if(a>1){
-      cl_agreement[a] = mean(current_clusters==prev_clusters)
     }
 
     # nb log(f_k(y_i))
@@ -1009,11 +1015,8 @@ EM_run <- function(ncores,X=NA, y, k,
     Q[a]<- (log(pi)%*%rowSums(wts)) + sum(wts*l)
 
     # break condition for EM
-    if(a>5){if(cl_agreement[a]==1 & abs((Q[a]-Q[a-5])/Q[a])<EM_tol
-                        #| (cl_agreement[a]==1 & Q[a]<=Q[a-1])
-                        ) {
-      # stop conditions: (1) relative difference in Q within EM_tol or
-      #                  (2) cls don't change, but Q decreases across iter (due to small numerical inconsistency after convergence)
+    if(a>5){if(cl_agreement[a]==1 & abs((Q[a]-Q[a-5])/Q[a])<EM_tol){
+      # stop conditions: relative difference in Q within EM_tol and clusters stop changing
       finalwts<-wts
       break
     }}
@@ -1021,22 +1024,18 @@ EM_run <- function(ncores,X=NA, y, k,
       finalwts<-wts
       if(trace){warning("Reached max iterations.")}
       DNC=1
+      break
     }
 
     # E step
     start_E = as.numeric(Sys.time())
     Estep_fit=E_step(wts,l,pi,CEM,Tau)
-    wts=Estep_fit$wts
-    keep=Estep_fit$keep
-    Tau=Estep_fit$Tau
-    CEM=Estep_fit$CEM
+    wts=Estep_fit$wts; keep=Estep_fit$keep; Tau=Estep_fit$Tau; CEM=Estep_fit$CEM
     end_E = as.numeric(Sys.time())
-    cat(paste("E Step Time Elapsed:",end_E-start_E,"seconds\n"))
+    if(trace){cat(paste("E Step Time Elapsed:",end_E-start_E,"seconds\n"))}
 
     # Diagnostics Tracking
-    for(i in 1:n){
-      current_clusters[i]<-which.max(wts[,i])
-    }
+    current_clusters = apply(wts,2,which.max)
 
     if(length(unique(current_clusters))<k & length(unique(prev_clusters))<k){
       finalwts=wts
@@ -1093,10 +1092,7 @@ EM_run <- function(ncores,X=NA, y, k,
   if(trace){cat("-------------------------------------\n")}
   num_warns=length(warnings())
 
-  final_clusters<-rep(0,times=n)
-  for(i in 1:n){
-    final_clusters[i]<-which.max(finalwts[,i])
-  }
+  final_clusters = apply(finalwts,2,which.max)
 
   nondiscriminatory=rep(FALSE,times=g)
   if(lambda==0){

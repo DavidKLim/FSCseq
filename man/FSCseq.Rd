@@ -15,7 +15,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
   maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-06,
   disp = c("gene", "cluster"), optim_method = "direct",
   method = c("EM", "CEM"), init_temp = sqrt(nrow(y)), trace = F,
-  trace.file = NULL)
+  trace.file = NULL, mb_size = floor(nrow(y)/5))
 }
 \arguments{
 \item{X}{(optional) design matrix of dimension n by p}
@@ -69,6 +69,8 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 \item{init_temp}{numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM}
 
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
+
+\item{mb_size}{minibatch size: # of genes to include per M step iteration}
 }
 \value{
 list containing outputs from EM_run() function
