@@ -6,25 +6,9 @@
 
 using namespace Rcpp;
 
-// phi_ml_g
-double phi_ml_g(arma::vec y, arma::vec mu, arma::vec wts, int limit, double p0, int trace);
-RcppExport SEXP _FSCseq_phi_ml_g(SEXP ySEXP, SEXP muSEXP, SEXP wtsSEXP, SEXP limitSEXP, SEXP p0SEXP, SEXP traceSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type wts(wtsSEXP);
-    Rcpp::traits::input_parameter< int >::type limit(limitSEXP);
-    Rcpp::traits::input_parameter< double >::type p0(p0SEXP);
-    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
-    rcpp_result_gen = Rcpp::wrap(phi_ml_g(y, mu, wts, limit, p0, trace));
-    return rcpp_result_gen;
-END_RCPP
-}
 // M_step
-Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k, arma::mat all_wts, arma::vec keep, arma::vec offset, arma::mat theta, arma::vec coefs_j, arma::vec phi_j, int cl_phi, int est_phi, int est_covar, double lambda, double alpha, double IRLS_tol, int maxit_IRLS, std::string optim_method);
-RcppExport SEXP _FSCseq_M_step(SEXP XSEXP, SEXP y_jSEXP, SEXP pSEXP, SEXP jSEXP, SEXP aSEXP, SEXP kSEXP, SEXP all_wtsSEXP, SEXP keepSEXP, SEXP offsetSEXP, SEXP thetaSEXP, SEXP coefs_jSEXP, SEXP phi_jSEXP, SEXP cl_phiSEXP, SEXP est_phiSEXP, SEXP est_covarSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP IRLS_tolSEXP, SEXP maxit_IRLSSEXP, SEXP optim_methodSEXP) {
+Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k, arma::mat all_wts, arma::vec keep, arma::vec offset, arma::mat theta, arma::vec coefs_j, arma::vec phi_j, int cl_phi, int est_covar, double lambda, double alpha, double IRLS_tol, int maxit_IRLS, std::string optim_method);
+RcppExport SEXP _FSCseq_M_step(SEXP XSEXP, SEXP y_jSEXP, SEXP pSEXP, SEXP jSEXP, SEXP aSEXP, SEXP kSEXP, SEXP all_wtsSEXP, SEXP keepSEXP, SEXP offsetSEXP, SEXP thetaSEXP, SEXP coefs_jSEXP, SEXP phi_jSEXP, SEXP cl_phiSEXP, SEXP est_covarSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP IRLS_tolSEXP, SEXP maxit_IRLSSEXP, SEXP optim_methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -41,21 +25,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< arma::vec >::type coefs_j(coefs_jSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type phi_j(phi_jSEXP);
     Rcpp::traits::input_parameter< int >::type cl_phi(cl_phiSEXP);
-    Rcpp::traits::input_parameter< int >::type est_phi(est_phiSEXP);
     Rcpp::traits::input_parameter< int >::type est_covar(est_covarSEXP);
     Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type IRLS_tol(IRLS_tolSEXP);
     Rcpp::traits::input_parameter< int >::type maxit_IRLS(maxit_IRLSSEXP);
     Rcpp::traits::input_parameter< std::string >::type optim_method(optim_methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(M_step(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS, optim_method));
+    rcpp_result_gen = Rcpp::wrap(M_step(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS, optim_method));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_FSCseq_phi_ml_g", (DL_FUNC) &_FSCseq_phi_ml_g, 6},
-    {"_FSCseq_M_step", (DL_FUNC) &_FSCseq_M_step, 20},
+    {"_FSCseq_M_step", (DL_FUNC) &_FSCseq_M_step, 19},
     {NULL, NULL, 0}
 };
 

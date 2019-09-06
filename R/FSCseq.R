@@ -187,15 +187,19 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
   coefs_j[is.na(coefs_j)] = 0
   mu = 2^(XX %*% coefs_j + offsets)
 
-  # phi_ml_g() is actually a bit slower than theta.ml(), but more stable
-  phi_g = phi_ml_g(y=as.integer(rep(y_j,k))[ids],
-                   mu=mu[ids],
-                   wts=c(t(wts))[ids],
-                   limit=25,
-                   p0=0,
-                   trace=0)
+  # phi_ml_g() buggy
+  # phi_g = phi_ml_g(y=as.integer(rep(y_j,k))[ids],
+  #                  mu=mu[ids],
+  #                  wts=c(t(wts))[ids],
+  #                  limit=25,
+  #                  p0=0,
+  #                  trace=0)
 
-  # phi_g = 1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],mu=mu[ids],weights=c(t(wts))[ids],limit=25,trace=F)
+  phi_g = tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+                           mu=mu[ids],
+                           weights=c(t(wts))[ids],
+                           limit=25,
+                           trace=F)},error=function(c){0})
 
 
   results=list(coefs_j=coefs_j,
@@ -227,15 +231,19 @@ glm.init_par=function(j){
   coefs_j[is.na(coefs_j)] = 0
   mu = 2^(XX %*% coefs_j + offsets)
 
-  # phi_ml_g() is actually a bit slower than theta.ml(), but more stable
-  phi_g = phi_ml_g(y=as.integer(rep(y[j,],k))[ids],
-                   mu=mu[ids],
-                   wts=c(t(wts))[ids],
-                   limit=25,
-                   p0=0,
-                   trace=0)
+  # phi_ml_g() buggy
+  # phi_g = phi_ml_g(y=as.integer(rep(y_j,k))[ids],
+  #                  mu=mu[ids],
+  #                  wts=c(t(wts))[ids],
+  #                  limit=25,
+  #                  p0=0,
+  #                  trace=0)
 
-  # phi_g = 1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],mu=mu[ids],weights=c(t(wts))[ids],limit=25)
+  phi_g = tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+                                     mu=mu[ids],
+                                     weights=c(t(wts))[ids],
+                                     limit=25,
+                                     trace=F)},error=function(c){0})
 
   results=list(coefs_j=coefs_j,
                phi_g=phi_g)
@@ -250,6 +258,8 @@ glm.init_par=function(j){
 #'
 #' @return Same output as M_step() function
 #'
+#' @importFrom MASS theta.ml
+#'
 #' @export
 M_step_par = function(j){
   if(Tau<=1 & a>6){
@@ -260,9 +270,19 @@ M_step_par = function(j){
   res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-               cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+               cl_phi=cl_phi,est_covar=est_covar[j],
                lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
                optim_method=optim_method)
+
+  if(est_phi[j]==1){
+    ids = (c(t(keep))==1)
+    mu = 2^(XX %*% res$coefs_j + offsets)
+    res$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+                                                 mu=mu[ids],
+                                                 weights=c(t(wts))[ids],
+                                                 limit=25,
+                                                 trace=F)},error=function(c){0}),k)
+  } else{ res$phi_j=phi[j,]}
   return(res)
 }
 
@@ -273,6 +293,8 @@ M_step_par = function(j){
 #' @param j gene index
 #'
 #' @return Same output as M_step() function
+#'
+#' @importFrom MASS theta.ml
 #'
 #' @export
 M_step_par2 = function(j, XX, y, p, a, k,
@@ -289,9 +311,19 @@ M_step_par2 = function(j, XX, y, p, a, k,
   res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-               cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+               cl_phi=cl_phi,est_covar=est_covar[j],
                lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
                optim_method=optim_method)
+
+  if(est_phi[j]==1){
+    ids = (c(t(keep))==1)
+    mu = 2^(XX %*% res$coefs_j + offsets)
+    res$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+                                             mu=mu[ids],
+                                             weights=c(t(wts))[ids],
+                                             limit=25,
+                                             trace=F)},error=function(c){0}),k)
+  } else{res$phi_j = phi[j,]}
   return(res)
 }
 
@@ -645,6 +677,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #'
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
+#' @importFrom MASS theta.ml
 #'
 #' @export
 EM_run <- function(ncores,X=NA, y, k,
@@ -745,7 +778,6 @@ EM_run <- function(ncores,X=NA, y, k,
   #   est_phi=rep(0,g)
   #   est_covar = rep(0,g)
   # }
-
   # all_temp_list = list()
   # all_theta_list = list()
 
@@ -780,7 +812,8 @@ EM_run <- function(ncores,X=NA, y, k,
           if(Sys.info()[['sysname']]=="Windows"){
             ## use mclapply for Windows ##
             clust = makeCluster(ncores)
-            clusterEvalQ(cl=clust,library(FSCseq))
+            clusterEvalQ(cl=clust,library(MASS))
+            clusterEvalQ(cl=clust,library(stats))
             clusterExport(cl=clust,varlist=c("keep","y","XX","k","offsets","wts"),envir=environment())
             par_init_fit = parallel::parLapply(clust, 1:g, glm.init_par)
             stopCluster(clust)
@@ -875,10 +908,19 @@ EM_run <- function(ncores,X=NA, y, k,
         par_X[[j]] <- M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                                      all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                                      theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-                                     cl_phi=cl_phi,est_phi=est_phi[j],est_covar=est_covar[j],
+                                     cl_phi=cl_phi,est_covar=est_covar[j],
                                      lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
                                      optim_method=optim_method     # added optim_method: need to update M_step.cpp in package
         )
+        if(est_phi[j]==1){
+          ids = (c(t(keep))==1)
+          mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
+          par_X[[j]]$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+                                                     mu=mu[ids],
+                                                     weights=c(t(wts))[ids],
+                                                     limit=25,
+                                                     trace=F)},error=function(c){0}),k)
+        } else{par_X[[j]]$phi_j = phi[j,]}
       }
     }
     Mend=as.numeric(Sys.time())
@@ -898,40 +940,6 @@ EM_run <- function(ncores,X=NA, y, k,
         phi[j,] = rep(phi_g[j],k)
       }
 
-      ### IF any coefs/phi unstable --> missing after M step, re-initialize via glm.nb() for just that gene
-      # if(any(is.na(coefs[j,])) | any(is.na(phi[j,]))){
-      #   if(trace){
-      #     if(any(is.na(phi[j,]))){cat(paste("Phi for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
-      #     if(any(is.na(coefs[j,]))){cat(paste("coefs for gene",j,"didn't converge in M step. Reinitializing with glm.nb().\n"))}
-      #   }
-      #   ###### re-initialize gene j with glm.nb() ######
-      #   init_fit=init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
-      #   coefs[j,]=init_fit$coefs_j
-      #   phi[j,]=rep(init_fit$phi_g,k)
-      #   phi_g[j]=init_fit$phi_g
-      #   theta<-matrix(rep(0,times=k^2),nrow=k)
-      #   for(c in 1:k){
-      #     for(cc in 1:k){
-      #       theta[c,cc]<-SCAD_soft_thresholding(coefs[j,c]-coefs[j,cc],lambda,alpha)
-      #     }
-      #   }
-      #   theta_list[[j]] <- theta
-      #   disc_ids[j]=any(theta_list[[j]]!=0)
-      # }
-      ### correct numerical inconsistency in gene-disp (fusion occurs, but slightly different cluster means)
-      ### inconsistencies on the order of 1e-7 to 1e-8: won't add much bias to equate them
-      # if(cl_phi==0){
-      #   theta0=which(theta_list[[j]]==0,arr.ind=TRUE)
-      #   fused_pairs=theta0[(theta0[,1]!=theta0[,2]),]
-      #   fused_pairs=t(apply(fused_pairs,1,sort))
-      #   fused_pairs[!duplicated(fused_pairs),]
-      #   if(ncol(fused_pairs)!=0){
-      #     for(fused_c in 1:nrow(fused_pairs)){                            # set coefs equal
-      #       coefs[j,fused_pairs[fused_c,2]] = coefs[j,fused_pairs[fused_c,1]]
-      #     }
-      #   }
-      # }
-
       # calculate LFCs (should just be 0 if k=1)
       LFCs[j,a] = max(coefs[j,1:k])-min(coefs[j,1:k])
 
@@ -942,10 +950,6 @@ EM_run <- function(ncores,X=NA, y, k,
         } else if(cl_phi==0){
           diff_phi[a,j]=abs(phi_g[j]-phi_list[[a-5]][j,1])/phi_list[[a-5]][j,1]
         }
-
-        # if(is.infinite(diff_phi[a,j]) | is.na(diff_phi[a,j])){
-        #   diff_phi[a,j]=1
-        # }
 
         if(diff_phi[a,j]<0.01 & all(current_clusters==prev_clusters)){
           est_phi[j]=0
