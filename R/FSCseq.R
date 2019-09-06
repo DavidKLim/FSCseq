@@ -376,7 +376,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  init_cls=NULL,init_wts=NULL,
                  init_method="max",n_rinits=if(method=="EM"){50}else{10},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
-                 maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-6,
+                 maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
                  disp=c("gene","cluster"),optim_method="direct",
                  method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL,
                  mb_size=NULL){
@@ -690,7 +690,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
-                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-6,disp,trace=F,optim_method="direct",
+                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,optim_method="direct",
                    mb_size=NULL){
 
   start_time <- Sys.time()
