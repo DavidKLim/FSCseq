@@ -26,6 +26,68 @@ logsumexpc=function(v){
   lse
 }
 
+#' Theta estimation with penalty
+#'
+#' theta.ml() with small ridge penalty to stabilize estimates
+#'
+#' @param v a vector or matrix of numbers
+#'
+#' @return theta
+#'
+#'
+#' @export
+theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine$double.eps^0.25,
+                    trace = FALSE)
+{
+  lambda=1E-25
+  score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (digamma(th +
+                                                        y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
+                                                                                                           th)/(mu + th))) + th*lambda}
+  info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
+                                                         y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
+                                                                                                              th)^2)) + lambda}
+  if (inherits(y, "lm")) {
+    mu <- y$fitted.values
+    y <- if (is.null(y$y))
+      mu + residuals(y)
+    else y$y
+  }
+  if (missing(weights))
+    weights <- rep(1, length(y))
+  t0 <- n/sum(weights * (y/mu - 1)^2)
+  it <- 0
+  del <- 1
+  if (trace)
+    message(sprintf("theta.ml: iter %d 'theta = %f'",
+                    it, signif(t0)), domain = NA)
+  while ((it <- it + 1) < limit && abs(del) > eps) {
+    t0 <- abs(t0)
+    if(trace){
+      print(score(n, t0, mu, y, weights))
+      print(info(n, t0,mu, y, weights))
+    }
+    del <- score(n, t0, mu, y, weights)/(i <- info(n, t0,
+                                                   mu, y, weights))
+    t0 <- t0 + del
+    if (trace)
+      message("theta.ml: iter", it, " theta =",
+              signif(t0))
+  }
+  if (t0 < 0) {
+    t0 <- 0
+    warning("estimate truncated at zero")
+    attr(t0, "warn") <- gettext("estimate truncated at zero")
+  }
+  if (it == limit) {
+    warning("iteration limit reached")
+    attr(t0, "warn") <- gettext("iteration limit reached")
+  }
+  test = sqrt(1/i)
+  if(is.na(test)){stop("ml didn't converge. using mm instead.")}
+  attr(t0, "SE") <- sqrt(1/i)
+  t0
+}
+
 #' SCAD soft thresholding function
 #'
 #' Takes pairwise distances between cluster log2 means and
@@ -175,7 +237,7 @@ E_step<-function(wts,l,pi,CEM,Tau){
 #' phi_g: Overdispersion estimate
 #'
 #' @importFrom stats glm
-#' @importFrom MASS theta.ml
+#' @importFrom MASS theta.mm
 #'
 #' @export
 glm.init=function(j,y_j,XX,k,offsets,wts,keep){
@@ -195,11 +257,27 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
   #                  p0=0,
   #                  trace=0)
 
-  phi_g = tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+  # throws error if theta.ml doesn't converge, i.e. sqrt(1/i) is NA
+
+  phi_g = tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
                            mu=mu[ids],
                            weights=c(t(wts))[ids],
                            limit=25,
-                           trace=F)},error=function(c){0})
+                           trace=F)},error=function(c){
+                             1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                         mu=mu[ids],
+                                        dfr=sum(ids)-1,
+                                         weights=c(t(wts))[ids],
+                                         limit=25)
+                           })
+
+  # phi_g = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+  #                          mu=mu[ids],
+  #                          weights=c(t(wts))[ids],
+  #                          limit=25,
+  #                          trace=T)
+
+
 
 
   results=list(coefs_j=coefs_j,
@@ -219,7 +297,7 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
 #' phi_g: Overdispersion estimate
 #'
 #' @importFrom stats glm
-#' @importFrom MASS theta.ml
+#' @importFrom MASS theta.mm
 #'
 #' @export
 glm.init_par=function(j){
@@ -239,11 +317,17 @@ glm.init_par=function(j){
   #                  p0=0,
   #                  trace=0)
 
-  phi_g = tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+  phi_g = tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
                                      mu=mu[ids],
                                      weights=c(t(wts))[ids],
                                      limit=25,
-                                     trace=F)},error=function(c){0})
+                                     trace=F)},error=function(c){
+                                       1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                                  mu=mu[ids],
+                                                  dfr=sum(ids)-1,
+                                                  weights=c(t(wts))[ids],
+                                                  limit=25)
+                                     })
 
   results=list(coefs_j=coefs_j,
                phi_g=phi_g)
@@ -258,7 +342,7 @@ glm.init_par=function(j){
 #'
 #' @return Same output as M_step() function
 #'
-#' @importFrom MASS theta.ml
+#' @importFrom MASS theta.mm
 #'
 #' @export
 M_step_par = function(j){
@@ -277,11 +361,17 @@ M_step_par = function(j){
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    res$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+    res$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
                                                  mu=mu[ids],
                                                  weights=c(t(wts))[ids],
                                                  limit=25,
-                                                 trace=F)},error=function(c){0}),k)
+                                                 trace=F)},error=function(c){
+                                                   1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                                              mu=mu[ids],
+                                                              dfr=sum(ids)-1,
+                                                              weights=c(t(wts))[ids],
+                                                              limit=25)
+                                                 }),k)
   } else{ res$phi_j=phi[j,]}
   return(res)
 }
@@ -294,7 +384,7 @@ M_step_par = function(j){
 #'
 #' @return Same output as M_step() function
 #'
-#' @importFrom MASS theta.ml
+#' @importFrom MASS theta.mm
 #'
 #' @export
 M_step_par2 = function(j, XX, y, p, a, k,
@@ -318,11 +408,17 @@ M_step_par2 = function(j, XX, y, p, a, k,
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    res$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+    res$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
                                              mu=mu[ids],
                                              weights=c(t(wts))[ids],
                                              limit=25,
-                                             trace=F)},error=function(c){0}),k)
+                                             trace=F)},error=function(c){
+                                               1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                                          mu=mu[ids],
+                                                          dfr=sum(ids)-1,
+                                                          weights=c(t(wts))[ids],
+                                                          limit=25)
+                                             }),k)
   } else{res$phi_j = phi[j,]}
   return(res)
 }
@@ -677,7 +773,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #'
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
-#' @importFrom MASS theta.ml
+#' @importFrom MASS theta.mm
 #'
 #' @export
 EM_run <- function(ncores,X=NA, y, k,
@@ -694,6 +790,10 @@ EM_run <- function(ncores,X=NA, y, k,
                    mb_size=NULL){
 
   start_time <- Sys.time()
+
+  n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
+  }else{1}
+  maxit_EM = maxit_EM*n_mb
 
   n<-ncol(y)         # number of samples
   g<-nrow(y)         # number of genes
@@ -785,9 +885,6 @@ EM_run <- function(ncores,X=NA, y, k,
 
   cl_agreement = rep(NA,maxit_EM)
   par_X=rep(list(list()),g)         # store M_step results
-
-  n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
-  }else{1}
 
 
   ########### M / E STEPS #########
@@ -915,11 +1012,17 @@ EM_run <- function(ncores,X=NA, y, k,
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
-          par_X[[j]]$phi_j = rep(tryCatch({1/MASS::theta.ml(y=as.integer(rep(y[j,],k))[ids],
+          par_X[[j]]$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
                                                      mu=mu[ids],
                                                      weights=c(t(wts))[ids],
                                                      limit=25,
-                                                     trace=F)},error=function(c){0}),k)
+                                                     trace=F)},error=function(c){
+                                                       1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                                                  mu=mu[ids],
+                                                                  dfr=sum(ids)-1,
+                                                                  weights=c(t(wts))[ids],
+                                                                  limit=25)
+                                                     }),k)
         } else{par_X[[j]]$phi_j = phi[j,]}
       }
     }
@@ -960,7 +1063,7 @@ EM_run <- function(ncores,X=NA, y, k,
     }
     if(trace){
       cat(paste("#genes to continue est. phi next iter:",sum(est_phi),".\n"))
-      cat(paste("Avg % diff in phi est (across 5 its) gene 1 = ",diff_phi[a,1],"\n"))
+      cat(paste("Avg % diff in phi est (across 5 its) = ",mean(diff_phi[a,]),"\n"))
     }
 
     # all_temp_list[[a]] = temp_list
@@ -1050,7 +1153,7 @@ EM_run <- function(ncores,X=NA, y, k,
       # finalwts=wts
       lower_K=TRUE
       warning(sprintf("Fewer than k clusters after iter%d",a))
-      # break
+      break
     }
 
     #print(current_clusters)
@@ -1125,13 +1228,11 @@ EM_run <- function(ncores,X=NA, y, k,
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
   BIC = -2*log_L + log(n)*num_est_params
 
-  # if(lower_K){
-  #   BIC=NA
-  #   if(trace){
-  #     print("Choose lower K. clusters identified: cls")
-  #     print(unique(current_clusters))
-  #   }
-  # }
+  if(lower_K){
+    BIC=NA
+    print("Choose lower K. clusters identified: cls")
+    print(unique(current_clusters))
+  }
 
   if(trace){
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
