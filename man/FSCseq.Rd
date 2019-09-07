@@ -10,7 +10,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
   init_coefs = matrix(0, nrow = nrow(y), ncol = k),
   init_phi = matrix(0, nrow = nrow(y), ncol = k), init_cls = NULL,
   init_wts = NULL, init_method = "max", n_rinits = if (method ==
-  "EM") {     50 } else {     10 }, maxit_inits = if (method == "EM") {  
+  "EM") {     20 } else {     10 }, maxit_inits = if (method == "EM") {  
     15 } else {     ceiling(log(2/nrow(y))/log(0.9)) }, maxit_EM = 100,
   maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04,
   disp = c("gene", "cluster"), optim_method = "direct",

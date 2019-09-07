@@ -259,17 +259,22 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
 
   # throws error if theta.ml doesn't converge, i.e. sqrt(1/i) is NA
 
-  phi_g = 1/theta.ml2(y=as.integer(rep(y_j,k))[ids],
-                           mu=mu[ids],
-                           weights=c(t(wts))[ids],
-                           limit=25,
-                           trace=F)
-  if(is.null(phi_g)){
+  theta_g = NULL
+  try(theta_g <- theta.ml2(y=as.integer(rep(y_j,k))[ids],
+                          mu=mu[ids],
+                          weights=c(t(wts))[ids],
+                          limit=25,
+                          trace=F),silent=TRUE)
+
+  if(is.null(theta_g)){
     phi_g=1/MASS::theta.mm(y=as.integer(rep(y_j,k))[ids],
                            mu=mu[ids],
                            dfr=sum(ids)-1,
                            weights=c(t(wts))[ids],
                            limit=25)
+    if(is.na(phi_g)){phi_g=0}
+  } else{
+    phi_g = 1/theta_g
   }
 
   # phi_g = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
@@ -317,18 +322,21 @@ glm.init_par=function(j){
   #                  limit=25,
   #                  p0=0,
   #                  trace=0)
-
-  phi_g = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                      mu=mu[ids],
-                      weights=c(t(wts))[ids],
-                      limit=25,
-                      trace=F)
-  if(is.null(phi_g)){
+  theta_g = NULL
+  try(theta_g <- theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                           mu=mu[ids],
+                           weights=c(t(wts))[ids],
+                           limit=25,
+                           trace=F),silent=TRUE)
+  if(is.null(theta_g)){
     phi_g=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
                            mu=mu[ids],
                            dfr=sum(ids)-1,
                            weights=c(t(wts))[ids],
                            limit=25)
+    if(is.na(phi_g)){phi_g=0}
+  } else{
+    phi_g = 1/theta_g
   }
 
   results=list(coefs_j=coefs_j,
@@ -363,17 +371,21 @@ M_step_par = function(j){
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                             mu=mu[ids],
-                             weights=c(t(wts))[ids],
-                             limit=25,
-                             trace=F)
-    if(is.null(phi_g_temp)){
+    theta_g_temp = NULL
+    try(theta_g_temp <- theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                                  mu=mu[ids],
+                                  weights=c(t(wts))[ids],
+                                  limit=25,
+                                  trace=F), silent=TRUE)
+    if(is.null(theta_g_temp)){
       phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
                                   mu=mu[ids],
                                   dfr=sum(ids)-1,
                                   weights=c(t(wts))[ids],
                                   limit=25)
+      if(is.na(phi_g_temp)){phi_g_temp=0}
+    } else{
+      phi_g_temp = 1/theta_g_temp
     }
     res$phi_j = rep(phi_g_temp,k)
   } else{ res$phi_j=phi[j,]}
@@ -412,17 +424,21 @@ M_step_par2 = function(j, XX, y, p, a, k,
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                        mu=mu[ids],
-                        weights=c(t(wts))[ids],
-                        limit=25,
-                        trace=F)
-    if(is.null(phi_g_temp)){
+    theta_g_temp = NULL
+    try(theta_g_temp <- theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                                  mu=mu[ids],
+                                  weights=c(t(wts))[ids],
+                                  limit=25,
+                                  trace=F),silent=TRUE)
+    if(is.null(theta_g_temp)){
       phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                             mu=mu[ids],
-                             dfr=sum(ids)-1,
-                             weights=c(t(wts))[ids],
-                             limit=25)
+                                  mu=mu[ids],
+                                  dfr=sum(ids)-1,
+                                  weights=c(t(wts))[ids],
+                                  limit=25)
+      if(is.na(phi_g_temp)){phi_g_temp=0}
+    } else{
+      phi_g_temp = 1/theta_g_temp
     }
     res$phi_j = rep(phi_g_temp,k)
   } else{res$phi_j = phi[j,]}
@@ -639,7 +655,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 
     ## Selecting maximum BIC model ##
     if(init_method=="max"){
-      fit_id = which.min(init_cls_BIC)
+      fit_id = which.min(init_cls_BIC)[1]
       init_cls = all_fits[[fit_id]]$clusters
       init_parms = T
       init_coefs = all_fits[[fit_id]]$coefs
@@ -712,6 +728,17 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   # CEM is set to F for final run to convergence. If inits were searched by
   # CEM, then temperature would have already reached 1 --> no need for CEM.
   # no inits searched for K=1 --> CEM and EM are equivalent for K=1.
+
+  if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
+    new_k = length(unique(init_cls))
+    init_coefs2 = matrix(init_coefs[,unique(init_cls)[order(unique(init_cls))]], ncol=new_k)      # temporary matrix to store coefs of fewer num of cls
+    # if covariates, then append onto init_coefs
+    prev_k = ncol(init_coefs)-p
+    if(p>0){init_coefs = matrix(cbind(init_coefs2,init_coefs[,(prev_k+1):(prev_k+p)]),ncol=new_k+p)}else{init_coefs=init_coefs2}
+    # change k to the lower K
+    k = new_k
+  }}
+
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
@@ -1018,17 +1045,21 @@ EM_run <- function(ncores,X=NA, y, k,
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
-          phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                                   mu=mu[ids],
-                                   weights=c(t(wts))[ids],
-                                   limit=25,
-                                   trace=F)
-          if(is.null(phi_g_temp)){
+          theta_g_temp = NULL
+          try(theta_g_temp <- theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                                        mu=mu[ids],
+                                        weights=c(t(wts))[ids],
+                                        limit=25,
+                                        trace=F),silent=TRUE)
+          if(is.null(theta_g_temp)){
             phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
                                         mu=mu[ids],
                                         dfr=sum(ids)-1,
                                         weights=c(t(wts))[ids],
                                         limit=25)
+            if(is.na(phi_g_temp)){phi_g_temp=0}
+          } else{
+            phi_g_temp = 1/theta_g_temp
           }
           par_X[[j]]$phi_j = rep(phi_g_temp,k)
         } else{par_X[[j]]$phi_j = phi[j,]}
@@ -1157,7 +1188,7 @@ EM_run <- function(ncores,X=NA, y, k,
     # Diagnostics Tracking
     current_clusters = apply(wts,2,which.max)
 
-    if(length(unique(current_clusters))<k & length(unique(prev_clusters))<k & !lower_K){
+    if(length(unique(current_clusters))<k & !lower_K){
       # finalwts=wts
       lower_K=TRUE
       warning(sprintf("Fewer than k clusters after iter%d",a))
@@ -1277,23 +1308,23 @@ EM_run <- function(ncores,X=NA, y, k,
     phi = phi_g
   }
 
-  if(length(unique(final_clusters))<k){
-    # remaining clusters at end of EM (in ascending order)
-    remaining_cls = unique(final_clusters)[order(unique(final_clusters))]
-
-    # change k to # of cls remaining
-    k=length(remaining_cls)
-
-    # subset params to just remaining cls
-    pi=pi[remaining_cls]
-    if(p>0){new_coefs = cbind(coefs[,remaining_cls],coefs[,(k+1):(k+p)])
-    } else{ new_coefs = coefs[,remaining_cls]}
-    coefs=new_coefs
-
-    if(cl_phi==1){
-      phi = phi[,remaining_cls]
-    }
-  }
+  # if(length(unique(final_clusters))<k){
+  #   # remaining clusters at end of EM (in ascending order)
+  #   remaining_cls = unique(final_clusters)[order(unique(final_clusters))]
+  #
+  #   # change k to # of cls remaining
+  #   k=length(remaining_cls)
+  #
+  #   # subset params to just remaining cls
+  #   pi=pi[remaining_cls]
+  #   if(p>0){new_coefs = cbind(coefs[,remaining_cls],coefs[,(k+1):(k+p)])
+  #   } else{ new_coefs = coefs[,remaining_cls]}
+  #   coefs=new_coefs
+  #
+  #   if(cl_phi==1){
+  #     phi = phi[,remaining_cls]
+  #   }
+  # }
 
   result<-list(k=k,
                pi=pi,
