@@ -83,7 +83,7 @@ theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine
     attr(t0, "warn") <- gettext("iteration limit reached")
   }
   test = sqrt(1/i)
-  if(is.na(test)){stop("ml didn't converge. using mm instead.")}
+  if(is.na(test)){return(NULL)}
   attr(t0, "SE") <- sqrt(1/i)
   t0
 }
@@ -259,17 +259,18 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
 
   # throws error if theta.ml doesn't converge, i.e. sqrt(1/i) is NA
 
-  phi_g = tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+  phi_g = 1/theta.ml2(y=as.integer(rep(y_j,k))[ids],
                            mu=mu[ids],
                            weights=c(t(wts))[ids],
                            limit=25,
-                           trace=F)},error=function(c){
-                             1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                                         mu=mu[ids],
-                                        dfr=sum(ids)-1,
-                                         weights=c(t(wts))[ids],
-                                         limit=25)
-                           })
+                           trace=F)
+  if(is.null(phi_g)){
+    phi_g=1/MASS::theta.mm(y=as.integer(rep(y_j,k))[ids],
+                           mu=mu[ids],
+                           dfr=sum(ids)-1,
+                           weights=c(t(wts))[ids],
+                           limit=25)
+  }
 
   # phi_g = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
   #                          mu=mu[ids],
@@ -317,17 +318,18 @@ glm.init_par=function(j){
   #                  p0=0,
   #                  trace=0)
 
-  phi_g = tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                                     mu=mu[ids],
-                                     weights=c(t(wts))[ids],
-                                     limit=25,
-                                     trace=F)},error=function(c){
-                                       1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                                                  mu=mu[ids],
-                                                  dfr=sum(ids)-1,
-                                                  weights=c(t(wts))[ids],
-                                                  limit=25)
-                                     })
+  phi_g = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                      mu=mu[ids],
+                      weights=c(t(wts))[ids],
+                      limit=25,
+                      trace=F)
+  if(is.null(phi_g)){
+    phi_g=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                           mu=mu[ids],
+                           dfr=sum(ids)-1,
+                           weights=c(t(wts))[ids],
+                           limit=25)
+  }
 
   results=list(coefs_j=coefs_j,
                phi_g=phi_g)
@@ -361,17 +363,19 @@ M_step_par = function(j){
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    res$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                                                 mu=mu[ids],
-                                                 weights=c(t(wts))[ids],
-                                                 limit=25,
-                                                 trace=F)},error=function(c){
-                                                   1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                                                              mu=mu[ids],
-                                                              dfr=sum(ids)-1,
-                                                              weights=c(t(wts))[ids],
-                                                              limit=25)
-                                                 }),k)
+    phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                             mu=mu[ids],
+                             weights=c(t(wts))[ids],
+                             limit=25,
+                             trace=F)
+    if(is.null(phi_g_temp)){
+      phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                  mu=mu[ids],
+                                  dfr=sum(ids)-1,
+                                  weights=c(t(wts))[ids],
+                                  limit=25)
+    }
+    res$phi_j = rep(phi_g_temp,k)
   } else{ res$phi_j=phi[j,]}
   return(res)
 }
@@ -408,17 +412,19 @@ M_step_par2 = function(j, XX, y, p, a, k,
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
     mu = 2^(XX %*% res$coefs_j + offsets)
-    res$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                                             mu=mu[ids],
-                                             weights=c(t(wts))[ids],
-                                             limit=25,
-                                             trace=F)},error=function(c){
-                                               1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                                                          mu=mu[ids],
-                                                          dfr=sum(ids)-1,
-                                                          weights=c(t(wts))[ids],
-                                                          limit=25)
-                                             }),k)
+    phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                        mu=mu[ids],
+                        weights=c(t(wts))[ids],
+                        limit=25,
+                        trace=F)
+    if(is.null(phi_g_temp)){
+      phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                             mu=mu[ids],
+                             dfr=sum(ids)-1,
+                             weights=c(t(wts))[ids],
+                             limit=25)
+    }
+    res$phi_j = rep(phi_g_temp,k)
   } else{res$phi_j = phi[j,]}
   return(res)
 }
@@ -470,7 +476,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  init_coefs=matrix(0,nrow=nrow(y),ncol=k),
                  init_phi=matrix(0,nrow=nrow(y),ncol=k),
                  init_cls=NULL,init_wts=NULL,
-                 init_method="max",n_rinits=if(method=="EM"){50}else{10},         # fewer searches for CEM to minimize computational cost
+                 init_method="max",n_rinits=if(method=="EM"){20}else{10},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
                  disp=c("gene","cluster"),optim_method="direct",
@@ -791,14 +797,14 @@ EM_run <- function(ncores,X=NA, y, k,
 
   start_time <- Sys.time()
 
-  n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
-  }else{1}
-  maxit_EM = maxit_EM*n_mb
-
   n<-ncol(y)         # number of samples
   g<-nrow(y)         # number of genes
   p<-ncol(X)         # number of covariates
   if(is.null(p)){p=0}
+
+  n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
+  }else{1}
+  maxit_EM = maxit_EM*n_mb
 
   cl_X = matrix(0,nrow=k*n,ncol=k)
   ident_k = diag(k)
@@ -1012,17 +1018,19 @@ EM_run <- function(ncores,X=NA, y, k,
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
-          par_X[[j]]$phi_j = rep(tryCatch({1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
-                                                     mu=mu[ids],
-                                                     weights=c(t(wts))[ids],
-                                                     limit=25,
-                                                     trace=F)},error=function(c){
-                                                       1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
-                                                                  mu=mu[ids],
-                                                                  dfr=sum(ids)-1,
-                                                                  weights=c(t(wts))[ids],
-                                                                  limit=25)
-                                                     }),k)
+          phi_g_temp = 1/theta.ml2(y=as.integer(rep(y[j,],k))[ids],
+                                   mu=mu[ids],
+                                   weights=c(t(wts))[ids],
+                                   limit=25,
+                                   trace=F)
+          if(is.null(phi_g_temp)){
+            phi_g_temp=1/MASS::theta.mm(y=as.integer(rep(y[j,],k))[ids],
+                                        mu=mu[ids],
+                                        dfr=sum(ids)-1,
+                                        weights=c(t(wts))[ids],
+                                        limit=25)
+          }
+          par_X[[j]]$phi_j = rep(phi_g_temp,k)
         } else{par_X[[j]]$phi_j = phi[j,]}
       }
     }
