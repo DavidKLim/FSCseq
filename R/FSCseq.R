@@ -730,6 +730,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   # no inits searched for K=1 --> CEM and EM are equivalent for K=1.
 
   if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
+    p<-if(is.null(X)){0}else{ncol(X)}         # number of covariates
+
     new_k = length(unique(init_cls))
     init_coefs2 = matrix(init_coefs[,unique(init_cls)[order(unique(init_cls))]], ncol=new_k)      # temporary matrix to store coefs of fewer num of cls
     # if covariates, then append onto init_coefs
@@ -826,8 +828,8 @@ EM_run <- function(ncores,X=NA, y, k,
 
   n<-ncol(y)         # number of samples
   g<-nrow(y)         # number of genes
-  p<-ncol(X)         # number of covariates
-  if(is.null(p)){p=0}
+
+  p<-if(is.null(X)){0}else{ncol(X)}         # number of covariates
 
   n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
   }else{1}
