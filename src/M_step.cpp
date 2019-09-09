@@ -286,7 +286,6 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
       //int fused_n_k = accu(n_k(fused_ids));             /* n_k = number of samples in fused cluster (if fused) */
       int num_fused_cls = fused_ids.n_elem;           /* tracks number of clusters that are fused with current cl c */
-      int min_fused_id = fused_ids.index_min();       /* determine which of the fused clusters has the smallest label */
 
       // Have to test this in k>1 setting
       /*fused_ids.print("fused_ids");
@@ -309,6 +308,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			arma::vec beta_fused = beta.elem(current_fused_and_unfused_ids);
 
 			if(num_fused_cls>1){
+			  int min_fused_id = fused_ids.index_min();       /* determine which of the fused clusters has the smallest label */
 				/* skip beta and phi (cl-disp) calculations if c is not the first of the fused cls */
 				if(c != min_fused_id){
 					beta(c) = beta(min_fused_id);
