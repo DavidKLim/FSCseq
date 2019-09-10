@@ -365,7 +365,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 				}
 				/* if beta is NaN */
 				if(beta(c) != beta(c)){
-					beta(c) = mean(beta);
+          beta(c) = log2(mean(y_j));
 					Rprintf("Beta of cl%d is NaN. Substituting with mean of other cls\n",c+1);
 				}
 
@@ -413,6 +413,12 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
         } else if(gamma(pp)<-100){
           gamma(pp)=-100;
         }   /* is this feasible to do? 2^100 is 1E30, 2^50 is 1.1E15 */
+
+        /* if gamma is NaN */
+        if(gamma(pp) != gamma(pp)){
+          gamma(pp) = 1e-6;     // VERY small effect for gamma if no convergence --> not 0 for IRLS stopping condition.
+          Rprintf("Gamma%d is NaN. Substituting with zero\n",pp+1);
+        }
 
         b = join_cols(beta,gamma);
       }
