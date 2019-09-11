@@ -356,17 +356,15 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
 				//Rprintf("c=%d,beta(c)=%f",c,beta(c));
 
-				if(beta(c) < (-100)){
+				if(beta(c) < (-50)){
 					/* Rprintf("Cluster %d, gene %d truncated at -100",c+1,j); */
-					beta(c) = -100;
-				} else if(beta(c)>100){
-					/* Rprintf("Cluster %d, gene %d truncated at +100",c+1,j); */
-					beta(c) = 100;
+					beta(c) = -50;
 				}
-				/* if beta is NaN */
-				if(beta(c) != beta(c)){
+
+				/* if beta is NaN or too large (2^50 ~ 1E15. RNA-seq goes up to about 1E9) */
+				if(beta(c) != beta(c) || beta(c) > 50){
           beta(c) = log2(mean(y_j));
-					Rprintf("Beta of cl%d is NaN. Substituting with mean of other cls\n",c+1);
+					Rprintf("Beta of gene%d cl%d is NaN. Restarting beta at mean of all samples\n",j,c+1);
 				}
 
 				b = join_cols(beta,gamma);
@@ -408,16 +406,15 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
         }
 
         /*Rprintf("covar iter%d gamma=%f, top=%f, bottom=%f\n",i,gamma(pp),accu(subs_vec_W % subs_Xcolpp % subs_resid),accu(subs_vec_W % pow(subs_Xcolpp,2)));*/
-        if(gamma(pp)>100){
-          gamma(pp)=100;
-        } else if(gamma(pp)<-100){
-          gamma(pp)=-100;
-        }   /* is this feasible to do? 2^100 is 1E30, 2^50 is 1.1E15 */
+
+        if(gamma(pp)<-50){
+          gamma(pp)=-50;
+        }   /* is this feasible to do? 2^100: 1e15. 2^100 is 1E30, 2^50 is 1.1E15 */
 
         /* if gamma is NaN */
-        if(gamma(pp) != gamma(pp)){
+        if(gamma(pp) != gamma(pp) || gamma(pp)>50){
           gamma(pp) = 1e-6;     // VERY small effect for gamma if no convergence --> not 0 for IRLS stopping condition.
-          Rprintf("Gamma%d is NaN. Substituting with zero\n",pp+1);
+          Rprintf("Gamma of gene%d cl%d is NaN. Restarting at zero\n",j,pp+1);
         }
 
         b = join_cols(beta,gamma);

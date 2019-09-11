@@ -2,7 +2,7 @@
 % Please edit documentation in R/FSCseq.R
 \name{M_step_par}
 \alias{M_step_par}
-\title{Parallelized M step}
+\title{Parallelized M step (parLApply)}
 \usage{
 M_step_par(j)
 }
