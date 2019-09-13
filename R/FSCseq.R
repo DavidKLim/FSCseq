@@ -550,6 +550,11 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 
   # if initial clustering is provided
   if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
+    if(trace){
+      if(!is.null(trace.file)){
+        sink()
+      }
+    }
     return(list(k=k,pi=NA,coefs=init_coefs,Q=NA,BIC=NA,discriminatory=NA,init_clusters=init_cls,clusters=init_cls,
                 phi=init_phi,wts=NA,time_elap=0,lambda=lambda,alpha=alpha,size_factors=size_factors,norm_y=norm_y,DNC=T,n_its=0,lower_K=T))     # NA values for BIC/n_its/time_elap. don't run FSCseq
   }}
@@ -644,6 +649,11 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       }
       if(length(unique(init_cls))<k){
         warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
+        if(trace){
+          if(!is.null(trace.file)){
+            sink()
+          }
+        }
         return(all_fits[[fit_id]])
         }
     }
