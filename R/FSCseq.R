@@ -625,9 +625,9 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
           next
         }
       }
-
+      # init clusters weren't specified, init_coefs/phi were not either
       fit = EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
-                   init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
+                   init_parms=F,disp=disp,
                    init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
                    maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
                    mb_size=mb_size)
@@ -1245,6 +1245,7 @@ EM_run <- function(ncores,X=NA, y, k,
   if(lower_K){
     print("K not optimal. clusters identified: cls")
     print(unique(current_clusters))
+    k=length(unique(current_clusters))
   }
 
   if(trace){
