@@ -1338,29 +1338,45 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   if(length(size_factors_pred) != ncol(y_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
 
+  idx=fit$discriminatory
+  y_pred=y_pred[idx,]      # subset to just disc genes found by FSCseq run
+  n=ncol(y_pred)
+  g=nrow(y_pred)
+
+  cl_phi=!is.null(dim(fit$phi))  # dimension of phi is null when gene-wise (vector)
+
   # fit is the output object from the EM() function
-  init_coefs=fit$coefs
-  init_phi=fit$phi
+
+  existing_cls = unique(fit$clusters)      # accounts for if lower K was selected
+  k=length(existing_cls)
+
+  # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
+  init_coefs=if(p>0){    # assumes covariate effects are last p columns of coefs
+    matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],ncol=k+p)
+  } else{matrix(fit$coefs[idx,existing_cls],ncol=k)}
+
+  # warning: order may not be preserved
+
+  init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,c(existing_cls)],nrow=sum(idx))}
+
   init_lambda=fit$lambda
   init_alpha=fit$alpha
 
 
-  cl_phi=!is.null(dim(init_phi))  # dimension of phi is null when gene-wise (vector)
 
   init_size_factors = size_factors_pred
   offsets=log2(init_size_factors)
-  n=ncol(y_pred)
-  g=nrow(y_pred)
-  k=fit$k
+
 
   # nb log(f_k(y_i))
   l<-matrix(0,nrow=k,ncol=n)
+  if(covars){
+    covar_coefs = matrix(init_coefs[,-(1:k)],ncol=p)
+    cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
+  } else {cov_eff=matrix(0,nrow=n,ncol=g)}
+
   for(i in 1:n){
     for(c in 1:k){
-      if(covars){
-        covar_coefs = matrix(init_coefs[,-(1:k)],ncol=p)
-        cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
-      } else {cov_eff=matrix(0,nrow=n,ncol=g)}
 
       if(cl_phi){
         l[c,i]<-sum(dnbinom(y_pred[,i],size=1/init_phi[,c],mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
