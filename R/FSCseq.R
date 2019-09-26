@@ -1046,6 +1046,12 @@ EM_run <- function(ncores,X=NA, y, k,
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
       coefs[j,] <- par_X[[j]]$coefs_j
       theta_list[[j]] <- par_X[[j]]$theta_j
+      # correct for small computational/numerical inconsistencies: if theta = 0, set coefs to be exactly equal
+      if( length(unique(coefs[j,])) != length(unique(theta_list[[j]][1,])) ){
+        for(c in 1:k){
+          coefs[j,c] = mean(coefs[j,theta_list[[j]][,c]==0])
+        }
+      }
       disc_ids[j]=any(theta_list[[j]]!=0)
       temp_list[[j]] <- if(p>0){cbind(par_X[[j]]$temp_beta, par_X[[j]]$temp_gamma)}else{par_X[[j]]$temp_beta}
       if(cl_phi==1){
@@ -1240,7 +1246,10 @@ EM_run <- function(ncores,X=NA, y, k,
   # (k-1) for mixture proportions
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
+
   BIC = -2*log_L + log(n)*num_est_params
+  BIC2 = -2*log_L + log(n*k)*num_est_params
+  BIC3 = -2*log_L + log(n*g)*num_est_params
 
   if(lower_K){
     print("K not optimal. clusters identified: cls")
@@ -1287,11 +1296,11 @@ EM_run <- function(ncores,X=NA, y, k,
                pi=pi,
                coefs=coefs,
                Q=Q[1:a],
-               BIC=BIC,
+               BIC=BIC,BIC2=BIC2,BIC3=BIC3,
                discriminatory=!(nondiscriminatory),
                init_clusters=init_cls,#init_coefs=init_coefs,init_phi=init_phi,
                clusters=final_clusters,
-               phi=phi,
+               phi=phi,num_est_params=num_est_params,m=m,
                #logL=log_L,
                wts=wts,
                time_elap=time_elap,
@@ -1347,7 +1356,7 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   # fit is the output object from the EM() function
 
-  existing_cls = unique(fit$clusters)      # accounts for if lower K was selected
+  existing_cls = unique(fit$clusters)[order(unique(fit$clusters))]      # accounts for if lower K was selected
   k=length(existing_cls)
 
   # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
