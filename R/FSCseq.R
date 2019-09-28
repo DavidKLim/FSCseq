@@ -1238,6 +1238,7 @@ EM_run <- function(ncores,X=NA, y, k,
   final_clusters = apply(finalwts,2,which.max)
 
   nondiscriminatory=rep(FALSE,times=g)
+
   if(lambda==0){
     m=rep(k,g) # if no penalty --> all disc, k params estimated per gene
   } else{
@@ -1246,12 +1247,6 @@ EM_run <- function(ncores,X=NA, y, k,
       m[j]=length(unique(theta_list[[j]][1,]))
       if(m[j]==1){nondiscriminatory[j]=TRUE}
     }
-  }
-
-  if(lower_K){
-    print("K not optimal. clusters identified: cls")
-    print(unique(current_clusters))
-    k=length(unique(current_clusters))
   }
 
   num_est_coefs = sum(m)
@@ -1291,6 +1286,13 @@ EM_run <- function(ncores,X=NA, y, k,
   BIC_ng = -2*log_L + log(n*g)*num_est_params
   eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
   eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
+
+
+  if(lower_K){
+    print("K not optimal. clusters identified: cls")
+    print(unique(current_clusters))
+    k=length(unique(current_clusters))
+  }
 
   if(trace){
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
