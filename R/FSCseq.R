@@ -458,7 +458,14 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
                  disp=c("gene","cluster"),optim_method="direct",
                  method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL,
-                 mb_size=NULL){
+                 mb_size=NULL,BIC_penalty=NULL,gamma=NULL){
+
+  # BIC_penalty = c("n","ng","nk")
+  if(is.null(BIC_penalty)){
+    print("no BIC_penalty specified. Default to log(n*g)")
+    BIC_penalty="ng"
+    }
+  if(!(BIC_penalty %in% c("n","ng","en","eng"))){stop("BIC_penalty must be 'n', 'ng', 'en', 'eng'")}
 
   # y: raw counts
   # k: #clusters
@@ -630,7 +637,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                    init_parms=F,disp=disp,
                    init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
                    maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                   mb_size=mb_size)
+                   mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma)
 
       all_fits [[i]] = fit
       init_cls_BIC[i] <- fit$BIC
@@ -725,7 +732,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
                  maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                 mb_size=mb_size)
+                 mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma)
 
   end_FSC = as.numeric(Sys.time())
   results$total_time_elap = end_FSC-start_FSC
@@ -804,7 +811,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
                    maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,optim_method="direct",
-                   mb_size=NULL){
+                   mb_size=NULL,BIC_penalty,gamma=NULL){
 
   start_time <- Sys.time()
 
@@ -1048,8 +1055,12 @@ EM_run <- function(ncores,X=NA, y, k,
       theta_list[[j]] <- par_X[[j]]$theta_j
       # correct for small computational/numerical inconsistencies: if theta = 0, set coefs to be exactly equal
       if( length(unique(coefs[j,])) != length(unique(theta_list[[j]][1,])) ){
+        fused_mean=rep(NA,k)    # calculate first. fix, then replace --> force all fused coefs to be equal
         for(c in 1:k){
-          coefs[j,c] = mean(coefs[j,theta_list[[j]][,c]==0])
+          fused_mean[c] = mean(coefs[j,theta_list[[j]][,c]==0])
+        }
+        for(c in 1:k){
+          coefs[j,c] = fused_mean[c]
         }
       }
       disc_ids[j]=any(theta_list[[j]]!=0)
@@ -1237,6 +1248,12 @@ EM_run <- function(ncores,X=NA, y, k,
     }
   }
 
+  if(lower_K){
+    print("K not optimal. clusters identified: cls")
+    print(unique(current_clusters))
+    k=length(unique(current_clusters))
+  }
+
   num_est_coefs = sum(m)
   num_est_params =
     if(cl_phi==1){
@@ -1247,15 +1264,25 @@ EM_run <- function(ncores,X=NA, y, k,
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
 
-  BIC = -2*log_L + log(n)*num_est_params
-  BIC2 = -2*log_L + log(n*k)*num_est_params
-  BIC3 = -2*log_L + log(n*g)*num_est_params
+  if(BIC_penalty %in% c("n","en")){eff_n = n}else if(BIC_penalty %in% c("ng","eng")){eff_n = n*g}
 
-  if(lower_K){
-    print("K not optimal. clusters identified: cls")
-    print(unique(current_clusters))
-    k=length(unique(current_clusters))
+  P = g*(k+p+1) + (k-1)
+  if(is.null(gamma)){
+    kappa = log(P)/log(eff_n)
+    gamma = 1 - 1/(2*kappa)
+      }
+  eBIC_term = 2*gamma*( sum(log(seq(num_est_params+1,P,1))) - sum(log(seq(1,P-num_est_params,1))) )
+
+  BIC = if(BIC_penalty %in% c("n","ng")){
+    -2*log_L + log(eff_n)*num_est_params
+  } else if(BIC_penalty %in% c("en","eng")){
+    -2*log_L + log(eff_n)*num_est_params + eBIC_term
   }
+
+  BIC_n = -2*log_L + log(n)*num_est_params
+  BIC_ng = -2*log_L + log(n*g)*num_est_params
+  eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
+  eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
 
   if(trace){
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
@@ -1263,6 +1290,8 @@ EM_run <- function(ncores,X=NA, y, k,
     cat(paste("-2log(L) =",-2*log_L,"\n"))
     cat(paste("log(n) =",log(n),"\n"))
     cat(paste("BIC =",BIC,"\n"))
+    cat(paste("gamma =",gamma,"\n"))
+    cat(paste("BIC(n,ng,en,eng)=\n",BIC_n,"\n",BIC_ng,"\n",eBIC_n,"\n",eBIC_ng,"\n"))
     cat(paste("Tau =",Tau,"\n"))
 
     disc_stats=cbind(m,(!nondiscriminatory)^2,disc_ids^2)
@@ -1296,7 +1325,7 @@ EM_run <- function(ncores,X=NA, y, k,
                pi=pi,
                coefs=coefs,
                Q=Q[1:a],
-               BIC=BIC,BIC2=BIC2,BIC3=BIC3,
+               BIC=BIC, BIC_n=BIC_n, BIC_ng=BIC_ng, eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_term=eBIC_term, gamma=gamma,
                discriminatory=!(nondiscriminatory),
                init_clusters=init_cls,#init_coefs=init_coefs,init_phi=init_phi,
                clusters=final_clusters,
