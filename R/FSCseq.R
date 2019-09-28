@@ -1270,8 +1270,16 @@ EM_run <- function(ncores,X=NA, y, k,
   if(is.null(gamma)){
     kappa = log(P)/log(eff_n)
     gamma = 1 - 1/(2*kappa)
-      }
-  eBIC_term = 2*gamma*( sum(log(seq(num_est_params+1,P,1))) - sum(log(seq(1,P-num_est_params,1))) )
+  }
+  log_choose=function(P,j){
+    # returns log(choose(P,j)), avoiding overflow issues
+    if(j<P){
+      return( sum(log(seq(j+1,P,1))) - sum(log(seq(1,P-j,1))) )
+    } else if(j==P){
+      return( 0 )
+    }
+  }
+  eBIC_term = 2*gamma*log_choose(P,num_est_params)
 
   BIC = if(BIC_penalty %in% c("n","ng")){
     -2*log_L + log(eff_n)*num_est_params
