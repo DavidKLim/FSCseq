@@ -968,6 +968,7 @@ EM_run <- function(ncores,X=NA, y, k,
           }
         }
         theta_list[[j]] <- theta
+        disc_ids[j]=any(theta_list[[j]]!=0)
       }
 
       end=as.numeric(Sys.time())
@@ -1261,6 +1262,17 @@ EM_run <- function(ncores,X=NA, y, k,
 
   if(BIC_penalty %in% c("n","en")){eff_n = n}else if(BIC_penalty %in% c("ng","eng")){eff_n = n*g}
 
+  BIC_penalty_term2=0
+  for(j in 1:g){
+    unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
+    for(i in 1:length(unique_thetas)){
+      cls_ids = which(theta_list[[j]][1,]==unique_thetas[i])      # returns all cluster indices corr to unique theta value
+      n_cls_ids = sum(final_clusters %in% cls_ids)                # returns number of samples in that cluster
+      BIC_penalty_term2 = BIC_penalty_term2 + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
+    }
+  }
+  BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params }
+
   P = g*(k+p+1) + (k-1)
   if(is.null(gamma)){
     kappa = log(P)/log(eff_n)
@@ -1275,17 +1287,20 @@ EM_run <- function(ncores,X=NA, y, k,
     }
   }
   eBIC_term = 2*gamma*log_choose(P,num_est_params)
+  BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){BIC_penalty_term1}else if(BIC_penalty %in% c("ng2","eng2")){BIC_penalty_term2}
 
-  BIC = if(BIC_penalty %in% c("n","ng")){
-    -2*log_L + log(eff_n)*num_est_params
-  } else if(BIC_penalty %in% c("en","eng")){
-    -2*log_L + log(eff_n)*num_est_params + eBIC_term
+  BIC = if(BIC_penalty %in% c("n","ng","ng2")){
+    -2*log_L + BIC_penalty_term
+  } else if(BIC_penalty %in% c("en","eng","eng2")){
+    -2*log_L + BIC_penalty_term + eBIC_term
   }
 
   BIC_n = -2*log_L + log(n)*num_est_params
   BIC_ng = -2*log_L + log(n*g)*num_est_params
+  BIC_ng2 = -2*log_L + BIC_penalty_term2
   eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
   eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
+  eBIC_ng2 = -2*log_L + BIC_penalty_term2 + eBIC_term
 
 
   if(lower_K){
@@ -1299,9 +1314,11 @@ EM_run <- function(ncores,X=NA, y, k,
     cat(paste("total # params estimated =",num_est_params,"\n"))
     cat(paste("-2log(L) =",-2*log_L,"\n"))
     cat(paste("log(n) =",log(n),"\n"))
+    cat(paste("log(n*g) =",log(n*g),"\n"))
+    cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2,"\n"))
     cat(paste("BIC =",BIC,"\n"))
     cat(paste("gamma =",gamma,"\n"))
-    cat(paste("BIC(n,ng,en,eng)=\n",BIC_n,"\n",BIC_ng,"\n",eBIC_n,"\n",eBIC_ng,"\n"))
+    cat(paste("BIC(n,ng,ng2,en,eng,eng2)=\n",BIC_n,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
     cat(paste("Tau =",Tau,"\n"))
 
     disc_stats=cbind(m,(!nondiscriminatory)^2,disc_ids^2)
@@ -1335,7 +1352,8 @@ EM_run <- function(ncores,X=NA, y, k,
                pi=pi,
                coefs=coefs,
                Q=Q[1:a],
-               BIC=BIC, BIC_n=BIC_n, BIC_ng=BIC_ng, eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_term=eBIC_term, gamma=gamma,
+               BIC=BIC, BIC_n=BIC_n, BIC_ng=BIC_ng, BIC_ng2=BIC_ng2,
+               eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_ng2=eBIC_ng2, eBIC_term=eBIC_term, gamma=gamma,
                discriminatory=!(nondiscriminatory),
                init_clusters=init_cls,#init_coefs=init_coefs,init_phi=init_phi,
                clusters=final_clusters,
