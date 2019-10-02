@@ -313,6 +313,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 				if(c != min_fused_id){
 					beta(c) = beta(min_fused_id);
 					phi_j(c) = phi_j(min_fused_id);
+					b = join_cols(beta,gamma);
 					continue;
 				}
 			}

@@ -465,7 +465,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
     print("no BIC_penalty specified. Default to log(n*g)")
     BIC_penalty="ng"
     }
-  if(!(BIC_penalty %in% c("n","ng","en","eng"))){stop("BIC_penalty must be 'n', 'ng', 'en', 'eng'")}
+  if(!(BIC_penalty %in% c("n","ng","ng2","en","eng","eng2"))){stop("BIC_penalty must be 'n', 'ng', 'ng2', 'en', 'eng', 'eng2'")}
 
   # y: raw counts
   # k: #clusters
@@ -968,7 +968,7 @@ EM_run <- function(ncores,X=NA, y, k,
           }
         }
         theta_list[[j]] <- theta
-        disc_ids[j]=any(theta_list[[j]]!=0)
+        #disc_ids[j]=any(theta_list[[j]]!=0)
       }
 
       end=as.numeric(Sys.time())
@@ -1054,16 +1054,16 @@ EM_run <- function(ncores,X=NA, y, k,
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
       coefs[j,] <- par_X[[j]]$coefs_j
       theta_list[[j]] <- par_X[[j]]$theta_j
-      # correct for small computational/numerical inconsistencies: if theta = 0, set coefs to be exactly equal
-      if( length(unique(coefs[j,])) != length(unique(theta_list[[j]][1,])) ){
-        fused_mean=rep(NA,k)    # calculate first. fix, then replace --> force all fused coefs to be equal
-        for(c in 1:k){
-          fused_mean[c] = mean(coefs[j,theta_list[[j]][,c]==0])
-        }
-        for(c in 1:k){
-          coefs[j,c] = fused_mean[c]
-        }
-      }
+      # # correct for small computational/numerical inconsistencies: if theta = 0, set coefs to be exactly equal (fixed in Rcpp)
+      # if( length(unique(coefs[j,1:k])) != length(unique(theta_list[[j]][1,])) ){
+      #   fused_mean=rep(NA,k)    # calculate first. fix, then replace --> force all fused coefs to be equal
+      #   for(c in 1:k){
+      #     fused_mean[c] = mean(coefs[j,theta_list[[j]][,c]==0])
+      #   }
+      #   for(c in 1:k){
+      #     coefs[j,c] = fused_mean[c]
+      #   }
+      # }
       disc_ids[j]=any(theta_list[[j]]!=0)
       temp_list[[j]] <- if(p>0){cbind(par_X[[j]]$temp_beta, par_X[[j]]$temp_gamma)}else{par_X[[j]]$temp_beta}
       if(cl_phi==1){
@@ -1135,7 +1135,7 @@ EM_run <- function(ncores,X=NA, y, k,
     # nb log(f_k(y_i))
     l<-matrix(rep(0,times=k*n),nrow=k)
     if(covars){
-      covar_coefs = matrix(coefs[,-(1:k)],ncol=p)
+      covar_coefs = matrix(coefs[,(k+1):(k+p)],ncol=p)
       cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
     } else {cov_eff=matrix(0,nrow=n,ncol=g)}
     for(i in 1:n){
@@ -1260,8 +1260,9 @@ EM_run <- function(ncores,X=NA, y, k,
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
 
-  if(BIC_penalty %in% c("n","en")){eff_n = n}else if(BIC_penalty %in% c("ng","eng")){eff_n = n*g}
+  if(BIC_penalty %in% c("n","en")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
 
+  # add log(1+g*n_eff) for all log2 baseline estimates (betas)
   BIC_penalty_term2=0
   for(j in 1:g){
     unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
@@ -1271,7 +1272,11 @@ EM_run <- function(ncores,X=NA, y, k,
       BIC_penalty_term2 = BIC_penalty_term2 + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
     }
   }
-  BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params }
+  # add in mixture proportions, gene disps, and cov effects
+  BIC_penalty_term2 = BIC_penalty_term2 + ((k-1) + (p+1)*g)*log(g*n)
+
+  # for straight BIC approx log(n) or log(ng)
+  BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params } else{NA}
 
   P = g*(k+p+1) + (k-1)
   if(is.null(gamma)){
