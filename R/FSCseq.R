@@ -465,7 +465,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
     print("no BIC_penalty specified. Default to log(n*g)")
     BIC_penalty="ng"
     }
-  if(!(BIC_penalty %in% c("n","ng","ng2","en","eng","eng2"))){stop("BIC_penalty must be 'n', 'ng', 'ng2', 'en', 'eng', 'eng2'")}
+  # if(!(BIC_penalty %in% c("n","n2","ng","ng2","en","en2","eng","eng2"))){stop("BIC_penalty must be 'n', 'n2', 'ng', 'ng2', 'en', 'en2', 'eng', 'eng2'")}
 
   # y: raw counts
   # k: #clusters
@@ -1260,22 +1260,25 @@ EM_run <- function(ncores,X=NA, y, k,
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
 
-  if(BIC_penalty %in% c("n","en")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
+  if(BIC_penalty %in% c("n","n2","en","en2")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
 
   # add log(1+g*n_eff) for all log2 baseline estimates (betas)
-  BIC_penalty_term2=0
+  BIC_penalty_term2n=0
+  BIC_penalty_term2ng=0
   for(j in 1:g){
     unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
     for(i in 1:length(unique_thetas)){
       cls_ids = which(theta_list[[j]][1,]==unique_thetas[i])      # returns all cluster indices corr to unique theta value
       n_cls_ids = sum(final_clusters %in% cls_ids)                # returns number of samples in that cluster
-      BIC_penalty_term2 = BIC_penalty_term2 + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
+      BIC_penalty_term2ng = BIC_penalty_term2ng + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
+      BIC_penalty_term2n = BIC_penalty_term2n + log(1 + n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
     }
   }
   # add in mixture proportions, gene disps, and cov effects
-  BIC_penalty_term2 = BIC_penalty_term2 + ((k-1) + (p+1)*g)*log(g*n)
+  BIC_penalty_term2ng = BIC_penalty_term2ng + ((k-1) + (p+1)*g)*log(g*n)
+  BIC_penalty_term2n = BIC_penalty_term2n + ((k-1) + (p+1)*g)*log(n)
 
-  # for straight BIC approx log(n) or log(ng)
+  # for straight BIC approx log(n) or log(ng) (NA for the '2's)
   BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params } else{NA}
 
   P = g*(k+p+1) + (k-1)
@@ -1292,20 +1295,28 @@ EM_run <- function(ncores,X=NA, y, k,
     }
   }
   eBIC_term = 2*gamma*log_choose(P,num_est_params)
-  BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){BIC_penalty_term1}else if(BIC_penalty %in% c("ng2","eng2")){BIC_penalty_term2}
+  BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){
+        BIC_penalty_term1
+      }else if(BIC_penalty %in% c("ng2","eng2")){
+        BIC_penalty_term2ng
+      }else if(BIC_penalty %in% c("n2","en2")){
+        BIC_penalty_term2n
+      }
 
-  BIC = if(BIC_penalty %in% c("n","ng","ng2")){
+  BIC = if(BIC_penalty %in% c("n","n2","ng","ng2")){
     -2*log_L + BIC_penalty_term
-  } else if(BIC_penalty %in% c("en","eng","eng2")){
+  } else if(BIC_penalty %in% c("en","en2","eng","eng2")){
     -2*log_L + BIC_penalty_term + eBIC_term
   }
 
   BIC_n = -2*log_L + log(n)*num_est_params
+  BIC_n2 = -2*log_L + BIC_penalty_term2n
   BIC_ng = -2*log_L + log(n*g)*num_est_params
-  BIC_ng2 = -2*log_L + BIC_penalty_term2
+  BIC_ng2 = -2*log_L + BIC_penalty_term2ng
   eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
+  eBIC_n2 = -2*log_L + BIC_penalty_term2n + eBIC_term
   eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
-  eBIC_ng2 = -2*log_L + BIC_penalty_term2 + eBIC_term
+  eBIC_ng2 = -2*log_L + BIC_penalty_term2ng + eBIC_term
 
 
   if(lower_K){
@@ -1320,10 +1331,11 @@ EM_run <- function(ncores,X=NA, y, k,
     cat(paste("-2log(L) =",-2*log_L,"\n"))
     cat(paste("log(n) =",log(n),"\n"))
     cat(paste("log(n*g) =",log(n*g),"\n"))
-    cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2,"\n"))
+    cat(paste("sum(log(1+n_eff)) =",BIC_penalty_term2n,"\n"))
+    cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2ng,"\n"))
     cat(paste("BIC =",BIC,"\n"))
     cat(paste("gamma =",gamma,"\n"))
-    cat(paste("BIC(n,ng,ng2,en,eng,eng2)=\n",BIC_n,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
+    cat(paste("BIC(n,n2,ng,ng2,en,en2,eng,eng2)=\n",BIC_n,"\n",BIC_n2,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_n2,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
     cat(paste("Tau =",Tau,"\n"))
 
     disc_stats=cbind(m,(!nondiscriminatory)^2,disc_ids^2)
@@ -1399,7 +1411,7 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
     if (any(is.na(X))) {stop("Missing data (NA's) detected.  Take actions (e.g., removing cases, removing features, imputation) to eliminate missing data before passing X")}
   }
 
-  covars = !is.null(X)             # what should be done with missing values
+  covars = !is.null(X)
   if(covars){
     p=ncol(X)
   } else{
@@ -1412,7 +1424,8 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   idx=fit$discriminatory
   y_pred=y_pred[idx,]      # subset to just disc genes found by FSCseq run
   n=ncol(y_pred)
-  g=nrow(y_pred)
+  # g=nrow(y_pred)
+  g=sum(idx)
 
   cl_phi=!is.null(dim(fit$phi))  # dimension of phi is null when gene-wise (vector)
 
@@ -1423,16 +1436,18 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
   init_coefs=if(p>0){    # assumes covariate effects are last p columns of coefs
-    matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],ncol=k+p)
-  } else{matrix(fit$coefs[idx,existing_cls],ncol=k)}
+    matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],nrow=g,ncol=k+p)
+  } else{matrix(fit$coefs[idx,existing_cls],nrow=g,ncol=k)}
 
   # warning: order may not be preserved
 
   init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,c(existing_cls)],nrow=sum(idx))}
 
+  pi=fit$pi[existing_cls]
+
+
   init_lambda=fit$lambda
   init_alpha=fit$alpha
-
 
 
   init_size_factors = size_factors_pred
@@ -1456,8 +1471,6 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
       }
     }    # subtract out 0.1 that was added earlier
   }
-
-  pi=fit$pi
 
   # E step
   # Estimate weights
