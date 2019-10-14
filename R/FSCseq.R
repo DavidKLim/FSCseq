@@ -1183,6 +1183,7 @@ EM_run <- function(ncores,X=NA, y, k,
     if(any(rowSums(keep)==0)){
       lower_K=TRUE
       finalwts=wts
+      pi[rowSums(keep)==0] = 1e-50      # this mixt. proportion --> 0
       warning(sprintf("No samples in a cluster %dth E step",a))
       break
     }
@@ -1323,6 +1324,7 @@ EM_run <- function(ncores,X=NA, y, k,
     print("K not optimal. clusters identified: cls")
     print(unique(current_clusters))
     k=length(unique(current_clusters))
+    BIC=Inf
   }
 
   if(trace){
