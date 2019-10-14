@@ -733,6 +733,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
                  maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
                  mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma)
+  if(results$lower_K){results$BIC=Inf}      # set BIC to Inf if mixture component disappears to 0
 
   end_FSC = as.numeric(Sys.time())
   results$total_time_elap = end_FSC-start_FSC
@@ -1324,7 +1325,6 @@ EM_run <- function(ncores,X=NA, y, k,
     print("K not optimal. clusters identified: cls")
     print(unique(current_clusters))
     k=length(unique(current_clusters))
-    BIC=Inf
   }
 
   if(trace){
