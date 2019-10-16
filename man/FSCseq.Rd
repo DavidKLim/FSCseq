@@ -16,7 +16,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
   disp = c("gene", "cluster"), optim_method = "direct",
   method = c("EM", "CEM"), init_temp = sqrt(nrow(y)), trace = F,
   trace.file = NULL, mb_size = NULL, BIC_penalty = NULL,
-  gamma = NULL)
+  gamma = NULL, PP_filt = 0.001)
 }
 \arguments{
 \item{X}{(optional) design matrix of dimension n by p}

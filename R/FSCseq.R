@@ -147,7 +147,7 @@ SCAD_soft_thresholding=function(diff_beta,lambda,alpha){
 #' CEM: logical: whether CEM is continued to be run
 #'
 #' @export
-E_step<-function(wts,l,pi,CEM,Tau){
+E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
   k=length(pi)
   n=ncol(l)
 
@@ -215,7 +215,9 @@ E_step<-function(wts,l,pi,CEM,Tau){
   }          # Keep drawing until at least one in each cluster
 
   # Input in M step only samples with PP's > 0.001
-  keep = (wts>0.001)^2      # matrix of 0's and 1's, dimensions k x n
+  if(!is.null(PP_filt)){
+    keep = (wts > PP_filt)^2      # matrix of 0's and 1's, dimensions k x n
+  }else{keep=matrix(1,nrow=nrow(wts),ncol=ncol(wts))}
 
   return(list(wts=wts,keep=keep,Tau=Tau,CEM=CEM))
 }
@@ -458,7 +460,9 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
                  disp=c("gene","cluster"),optim_method="direct",
                  method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL,
-                 mb_size=NULL,BIC_penalty=NULL,gamma=NULL){
+                 mb_size=NULL,BIC_penalty=NULL,gamma=NULL,PP_filt=1e-3){
+
+  # set PP_filt = NULL or 0 < PP_filt < 1e-50: turn off PP_filt in M step
 
   # BIC_penalty = c("n","ng","nk")
   if(is.null(BIC_penalty)){
@@ -555,16 +559,16 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
     init_cls=rep(1,n)
   }
 
-  # if initial clustering is provided
-  if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
-    if(trace){
-      if(!is.null(trace.file)){
-        sink()
-      }
-    }
-    return(list(k=k,pi=NA,coefs=init_coefs,Q=NA,BIC=NA,discriminatory=NA,init_clusters=init_cls,clusters=init_cls,
-                phi=init_phi,wts=NA,time_elap=0,lambda=lambda,alpha=alpha,size_factors=size_factors,norm_y=norm_y,DNC=T,n_its=0,lower_K=T))     # NA values for BIC/n_its/time_elap. don't run FSCseq
-  }}
+  # # if initial clustering is provided (turned off: can now let fewer initial clusters than k)
+  # if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
+  #   if(trace){
+  #     if(!is.null(trace.file)){
+  #       sink()
+  #     }
+  #   }
+  #   return(list(k=k,pi=NA,coefs=init_coefs,Q=NA,BIC=NA,discriminatory=NA,init_clusters=init_cls,clusters=init_cls,
+  #               phi=init_phi,wts=NA,time_elap=0,lambda=lambda,alpha=alpha,size_factors=size_factors,norm_y=norm_y,DNC=T,n_its=0,lower_K=T))     # NA values for BIC/n_its/time_elap. don't run FSCseq
+  # }}
 
   # if initial clustering is not provided
   if(is.null(init_cls) & is.null(init_wts) & k>1){
@@ -637,7 +641,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                    init_parms=F,disp=disp,
                    init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
                    maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                   mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma)
+                   mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma,PP_filt=PP_filt)
 
       all_fits [[i]] = fit
       init_cls_BIC[i] <- fit$BIC
@@ -732,7 +736,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
                  maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                 mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma)
+                 mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma,PP_filt=PP_filt)
 
   end_FSC = as.numeric(Sys.time())
   results$total_time_elap = end_FSC-start_FSC
@@ -811,7 +815,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
                    maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,optim_method="direct",
-                   mb_size=NULL,BIC_penalty,gamma=NULL){
+                   mb_size=NULL,BIC_penalty,gamma=NULL,PP_filt){
 
   start_time <- Sys.time()
 
@@ -894,7 +898,10 @@ EM_run <- function(ncores,X=NA, y, k,
         rep(0,g)
       }
 
-  keep = (wts>0.001)^2
+  # if PP_filt is not set to NULL --> keep only obs/cl in M step > PP_filt threshold
+  if(!is.null(PP_filt)){
+    keep = (wts > PP_filt)^2
+  }else{keep = matrix(1,nrow=nrow(wts),ncol=ncol(wts))}
 
   ## Manual turn-off of estimating phi/covariates
   # if(init_parms){
@@ -912,6 +919,12 @@ EM_run <- function(ncores,X=NA, y, k,
 
   ########### M / E STEPS #########
   for(a in 1:maxit_EM){
+
+    # if any cluster has 0 samples to estimate with, set keep to all samples --> weight them w/ small 1e-50 weights
+    if(k>1){if(any(rowSums(keep)==0)){
+      keep[rowSums(keep)==0,]=1
+    }}
+
     EMstart= as.numeric(Sys.time())
 
     prev_clusters = apply(wts,2,which.max)     # set previous clusters (or initial if a=1)
@@ -1171,7 +1184,7 @@ EM_run <- function(ncores,X=NA, y, k,
 
     # E step
     start_E = as.numeric(Sys.time())
-    Estep_fit=E_step(wts,l,pi,CEM,Tau)
+    Estep_fit=E_step(wts,l,pi,CEM,Tau,PP_filt)
     wts=Estep_fit$wts; keep=Estep_fit$keep; Tau=Estep_fit$Tau; CEM=Estep_fit$CEM
     end_E = as.numeric(Sys.time())
     if(trace){cat(paste("E Step Time Elapsed:",end_E-start_E,"seconds\n"))}
@@ -1179,7 +1192,8 @@ EM_run <- function(ncores,X=NA, y, k,
     # Diagnostics Tracking
     current_clusters = apply(wts,2,which.max)
 
-    # if all PP's for a particular cluster is < 0.001 (threshold for keep)
+    # if all PP's for a particular cluster is < PP_filt (threshold for keep).
+    # shouldn't happen now: if any rowSums(keep) == 0, those rows are set to 1 at beginning of EM
     if(any(rowSums(keep)==0)){
       lower_K=TRUE
       finalwts=wts
@@ -1321,10 +1335,11 @@ EM_run <- function(ncores,X=NA, y, k,
 
 
   if(lower_K){
-    print("K not optimal. clusters identified: cls")
-    print(unique(current_clusters))
-    k=length(unique(current_clusters))
-    BIC=Inf
+    stop("something's wrong: this shouldn't be happening anymore")
+    # print("K not optimal. clusters identified: cls")
+    # print(unique(current_clusters))
+    # k=length(unique(current_clusters))
+    # BIC=Inf
   }
 
   if(trace){

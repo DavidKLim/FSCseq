@@ -4,7 +4,7 @@
 \alias{E_step}
 \title{Computes E step weights}
 \usage{
-E_step(wts, l, pi, CEM, Tau)
+E_step(wts, l, pi, CEM, Tau, PP_filt)
 }
 \arguments{
 \item{wts}{matrix of dimension k by n, current E step weights. Used as template matrix to update}

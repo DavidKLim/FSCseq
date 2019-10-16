@@ -12,7 +12,7 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
   init_wts = NULL, CEM = F, init_Tau = 1, maxit_EM = 100,
   maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04, disp,
   trace = F, optim_method = "direct", mb_size = NULL, BIC_penalty,
-  gamma = NULL)
+  gamma = NULL, PP_filt)
 }
 \arguments{
 \item{X}{design matrix of dimension n by p}
