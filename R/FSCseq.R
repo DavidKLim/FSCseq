@@ -903,6 +903,11 @@ EM_run <- function(ncores,X=NA, y, k,
     keep = (wts > PP_filt)^2
   }else{keep = matrix(1,nrow=nrow(wts),ncol=ncol(wts))}
 
+  # if any cluster has 0 samples to estimate with, set keep to all samples --> weight them w/ small 1e-50 weights
+  if(k>1){if(any(rowSums(keep)==0)){
+    keep[rowSums(keep)==0,]=1
+  }}
+
   ## Manual turn-off of estimating phi/covariates
   # if(init_parms){
   #   est_phi=rep(0,g)
@@ -919,11 +924,6 @@ EM_run <- function(ncores,X=NA, y, k,
 
   ########### M / E STEPS #########
   for(a in 1:maxit_EM){
-
-    # if any cluster has 0 samples to estimate with, set keep to all samples --> weight them w/ small 1e-50 weights
-    if(k>1){if(any(rowSums(keep)==0)){
-      keep[rowSums(keep)==0,]=1
-    }}
 
     EMstart= as.numeric(Sys.time())
 
@@ -1188,6 +1188,11 @@ EM_run <- function(ncores,X=NA, y, k,
     wts=Estep_fit$wts; keep=Estep_fit$keep; Tau=Estep_fit$Tau; CEM=Estep_fit$CEM
     end_E = as.numeric(Sys.time())
     if(trace){cat(paste("E Step Time Elapsed:",end_E-start_E,"seconds\n"))}
+
+    # if any cluster has 0 samples to estimate with, set keep to all samples --> weight them w/ small 1e-50 weights
+    if(k>1){if(any(rowSums(keep)==0)){
+      keep[rowSums(keep)==0,]=1
+    }}
 
     # Diagnostics Tracking
     current_clusters = apply(wts,2,which.max)
