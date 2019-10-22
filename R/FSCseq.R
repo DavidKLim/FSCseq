@@ -284,6 +284,8 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
   coefs_j = log2(exp(init.fit$coefficients))         # change to log2 scale
 
   coefs_j[is.na(coefs_j)] = 0
+  coefs_j[which(coefs_j< -50)] = -50
+  coefs_j[which(coefs_j>50)] = 50
   mu = 2^(XX %*% coefs_j + offsets)
 
   phi_g=phi.ml(y=as.integer(rep(y_j,k))[ids],
@@ -318,6 +320,9 @@ glm.init_par=function(j){
   coefs_j = log2(exp(init.fit$coefficients))         # change to log2 scale
 
   coefs_j[is.na(coefs_j)] = 0
+  coefs_j[which(coefs_j< -50)] = -50
+  coefs_j[which(coefs_j>50)] = 50
+
   mu = 2^(XX %*% coefs_j + offsets)
 
   phi_g=phi.ml(y=as.integer(rep(y[j,],k))[ids],
@@ -459,7 +464,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
                  disp=c("gene","cluster"),optim_method="direct",
-                 method=c("EM","CEM"),init_temp=sqrt(nrow(y)),trace=F,trace.file=NULL,
+                 method=c("EM","CEM"),init_temp=nrow(y),trace=F,trace.file=NULL,
                  mb_size=NULL,BIC_penalty=NULL,gamma=NULL,PP_filt=1e-3){
 
   # set PP_filt = NULL or 0 < PP_filt < 1e-50: turn off PP_filt in M step
@@ -1167,7 +1172,7 @@ EM_run <- function(ncores,X=NA, y, k,
 
     # break condition for EM
     if(a>n_mb){
-      if(cl_agreement[a]==1){
+      if(cl_agreement[a]==1 & Tau <= 10){
         if(abs((Q[a]-Q[a-n_mb])/Q[a-n_mb])<EM_tol){
           # stop conditions: relative difference in Q within EM_tol and clusters stop changing
           # n_mb = g/mb_size, or number of minibatches that g can contain (rounded up/ceiling)
@@ -1448,24 +1453,25 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   n=ncol(y_pred)
   # g=nrow(y_pred)
   g=sum(idx)
+  pi=fit$pi
+  k=length(pi)
 
   cl_phi=!is.null(dim(fit$phi))  # dimension of phi is null when gene-wise (vector)
 
   # fit is the output object from the EM() function
 
-  existing_cls = unique(fit$clusters)[order(unique(fit$clusters))]      # accounts for if lower K was selected
-  k=length(existing_cls)
-
-  # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
-  init_coefs=if(p>0){    # assumes covariate effects are last p columns of coefs
-    matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],nrow=g,ncol=k+p)
-  } else{matrix(fit$coefs[idx,existing_cls],nrow=g,ncol=k)}
+  # # if EM fit lost mixture components
+  # existing_cls = unique(fit$clusters)[order(unique(fit$clusters))]      # accounts for if lower K was selected
+  # k=length(existing_cls)
+  # # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
+  # init_coefs=if(p>0){    # assumes covariate effects are last p columns of coefs
+  #   matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],nrow=g,ncol=k+p)
+  # } else{matrix(fit$coefs[idx,existing_cls],nrow=g,ncol=k)}
+  # pi=fit$pi[existing_cls]
 
   # warning: order may not be preserved
 
   init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,c(existing_cls)],nrow=sum(idx))}
-
-  pi=fit$pi[existing_cls]
 
 
   init_lambda=fit$lambda

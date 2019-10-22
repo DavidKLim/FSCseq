@@ -1,130 +1,195 @@
+#' Simulate data with gene-wise dispersion parameters
+simulate_counts=function(K,B,n,g,
+                         cls,SF,
+                         beta,phi,LFCg_mat,#noise_mat,
+                         batch,LFCb,sigma_b,sigma_g,DEb_ID,disp){     # batch of 0: no batch effect, batch of 1: yes effect
+  # center batch at 0: lower batch gets downregulated, higher batch gets upregulated
+  # if B=1, batch_eff = 0 with some noise by sigma_b
+  batch_eff = (batch-(B-1)/2)*LFCb+rnorm(n,0,sigma_b)
+  cts <- matrix(rep(0,times=g*n),nrow=g)
+
+  b = beta + LFCg_mat # + noise_mat
+
+  if(disp=="gene"){
+    phi_mat = matrix(phi,nrow=g,ncol=K)      # construct matrix with same phi values for all cls if g-disp
+  }
+  for(j in 1:g){
+    for(i in 1:n){
+      if(DEb_ID[j]){      # if this is a gene that is differentially expressed due to batch
+        cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(1,0,sigma_g) + batch_eff[i]))
+      } else{
+        cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(1,0,sigma_g)))
+      }
+    }
+  }
+
+  return(cts)
+}
+
 #' Simulate RNA-seq bulk gene expression count data
 #'
 #' Simulate data based on input simulation parameters. Size factors are custom input
 #' or simulated from N(1,0.25)
 #'
-#' @param n integer, sample size
-#' @param k integer, number of clusters
+#' @param K integer, number of clusters
+#' @param B integer, number of batches
 #' @param g integer, number of genes
-#' @param pi numeric vector, mixture proportions, or proportion in each cluster. Equal sizes by default
-#' @param coefs numeric matrix of simulated log2 means. Must have g rows and k columns, for each gene and cluster. If NULL, must input beta, p_disc, and LFC
-#' @param beta numeric or numeric vector, gene ``baseline" log2 mean. If not vector, then all genes will be simulated with same baseline
-#' @param p_disc numeric value from 0 to 1, proportion of genes that are discriminatory (that LFC is applied).
-#' @param LFC numeric value greater than 0, log2 fold change to be applied on discriminatory genes. For each gene, one random cluster simulated to be either up-regulated (add LFC) or down-regulated (subtract LFC)
-#' @param disp string, either "gene" or "cluster". "gene" simulates gene-level overdispersion parameters, and "cluster" simulates cluster-level overdispersion parameters
-#' @param phi numeric, overdispersion parameters. must be vector of length g if disp=='gene', or matrix of g rows and k columns if disp=='cluster'
-#' @param size_factors numeric vector of simulated size factors for each subject. By default, simulated from N(1,0.25)
-#' @param batch_effects numeric vector of effects corresponding to each level of 'batch'. Must have length equal to the number of batches specified. Effects are applied in order (i.e. first element of batch_effects refers to the effect of batch 1, etc)
-#' @param batch integer vector of simulated batch of each sample. Must be numeric 1 to (number of batches).
+#' @param n integer, number of samples
+#' @param pK vector of length K (optional): proportion of samples in each cluster
+#' @param pB vector of length B (optional): proportion of samples in each batch
+#' @param LFCg numeric, LFC for cluster-discriminatory genes
+#' @param pDEg numeric, proportion of genes that are cluster-discriminatory
+#' @param sigma_g numeric, Gaussian noise added from N(0,sigma_g). Default is 0.1
+#' @param LFCb numeric, LFC for genes that are differentially expressed across batch. Default is 1.
+#' @param pDEb numeric, proportion of genes that are differentially expressed across batch. Default is 0.5.
+#' @param sigma_b numeric, Gaussian noise added to each batch (turned off, set to 0).
+#' @param beta0 numeric, baseline log2 expression for each gene before LFC is applied
+#' @param phi0 numeric, baseline overdispersion for each gene
+#' @param SF vector of length n (optional), custom size factors from DESeq2. If NULL, simulated from N(1,0.25)
+#' @param nsims integer, number of datasets to simulate given the input conditions. Default is 25.
+#' @param disp string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'
+#' @param n_pred integer, number of samples in simulated prediction dataset. Default is 25
+#' @param save_dir string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'
+#' @param save_file string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'
 #'
-#' @return list containing the following objects:
-#' y: count matrix of g by n
-#' clusters: cluster indices for each of the n samples
-#' batch: input known batch of each sample (all 1 by default)
-#' batch_effects: input batch effects for each batch (0 by default)
-#' batch_g: genes on which batch effects were applied (on random half of genes)
-#' size_factors: simulated or input size factors (by default, simulated from N(1,0.25))
-#' coefs: matrix of log2 means for each gene and cluster, either input matrix or constructed based on beta, p_disc, and LFC
-#' phi: numeric overdispersion parameters, either vector or matrix based on dispersion scheme
-#' true_disc: logical vector of length g, TRUE if gene is simulated discriminatory (not simulated by same beta across clusters), FALSE if not
+#' @return saved file in '<save_dir>/<save_file>_sim<1:nsims>_data.RData'
 #'
 #' @export
-simulateData <- function(n,k,g,pi=rep(1/k,k),
-                         coefs=NULL,beta,p_disc,LFC,
-                         disp="gene",phi,
-                         size_factors=NULL,
-                         batch_effects=0,batch=rep(1,n)){
+simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
+                        LFCg, pDEg, sigma_g=0.1,
+                        LFCb=1, pDEb=0.5, sigma_b=0,
+                        beta0, phi0, SF=NULL,
+                        nsims=25, disp="gene", n_pred=25, save_dir=NULL,save_file=NULL){
 
-  if(length(pi)!=k){stop("pi must have length k")}
-  if(any(pi<=0) | any(pi>1)){stop("pi must all be between 0 and 1")}
-  if(!is.null(coefs)){
-    if(!is.matrix(coefs)){stop("coefs must be a matrix")}
-    if(nrow(coefs) != g | ncol(coefs) != k){stop("coefs must have g rows and k columns")}
+  if(is.null(save_dir)){
+    dir_name=sprintf("Simulations/%f_%f/B%d",sigma_g,sigma_b,B)
+  }else{dir_name=save_dir}
+  ifelse(!dir.exists(dir_name),
+         dir.create(dir_name),
+         FALSE)
+
+  if(is.null(save_file)){
+    file_name=sprintf("%s/%d_%d_%f_%f_%f_%f",
+                      dir_name,K,n,LFCg,pDEg,beta0[1],phi0[1])   # just the first elt of beta0 and phi0
+  }else{file_name=save_file}
+
+  match=match.call()
+  # add N(0,sigma) noise to each gene/cluster
+  # introduced sigma_g: draw LFC for each DE gene from N(LFCg,sigma_g). same w/ sigma_b for batch
+  # introduced sigma: small Gaussian noise N(0,sigma) introduced to beta for all gene/cluster combinations
+  #### this would make performance worse throughout
+  # SF: defaults to be simulated N(1,0.25), cutoff at bottom 0.25, cutoff at top by 2 (based on BRCA sample estimates)
+
+  # all the diff inputs of beta:
+  # 1) scalar --> change to matrix(beta,nrow=g,ncol=K)
+  # 2) vector of length g --> change to matrix(beta,nrow=g,ncol=K)
+  # 3) matrix of dim 1x1 --> change to matrix(beta,nrow=g,ncol=K)
+  # 4) matrix of dim gx1 or 1xg --> change to matrix(beta, nrow=g,ncol=K)
+  # 5) matrix of dim gxK --> matrix(beta, nrow=g,ncol=K)
+  if(is.null(pK)){     # custom pN (probability of being in each cl K) must be of length K, and add up to 1
+    pK=rep(1/K,K)
+    pB=rep(1/B,B)
   }
   if(disp=="gene"){
-    if(!(length(phi) %in% c(1,g))){stop("phi must have length 1 or g")}
-  } else if(disp=="cluster"){
-    if(!is.matrix(phi)){stop("phi must be a matrix")}
-    if(nrow(phi) != g | ncol(phi) != k){stop("phi must have g rows and k columns")}
-  } else{ stop("disp must be 'gene' or 'cluster'") }
-
-  # simulate size factors from N(1,0.25) if custom size factors are not input
-  if(is.null(size_factors)){
-    size_factors = simulateSizeFactors(n)
-  }else{
-    if(length(size_factors)!=n){stop("input size_factors must have length n")}
-    if(any(size_factors<=0)){stop("input size_factors must be >0 (1=no adjustment)")}
-  }
-  if(length(batch)!=n){stop("batch must be specified for all n samples")}
-  if(length(batch_effects) != length(unique(batch))){stop("Number of batch effects, and number of batches specified do not match.")}
-
-
-  if(is.null(coefs)){
-    message("Custom coefs matrix not specified. Constructing matrix based on input beta, p_disc, and LFC")
-    if(!(length(beta) %in% c(1,g))){stop("beta must be a vector of length 1 (all genes same value) or g")}
-    if(p_disc < 0 | p_disc > 1){stop("p_disc must be between 0 and 1")}
-    coefs=matrix(beta,nrow=g,ncol=k)                      # initialize coefs matrix
-    disc_ids=sample(1:g,ceiling(p_disc*g),replace=F)      # sample appropriate number of genes to be disc
-    for(j in disc_ids){
-      LFC_applied=(rbinom(1,1,0.5)-0.5)*2*LFC             # Random up/down regulation by LFC
-      coefs[j,sample(1:k,1)] =+ LFC_applied     # LFC applied to random cluster
-    }
-  }
-
-  true_disc=apply(coefs,1,function(x) {(max(x)-min(x))!=0})     # sees which genes have range >0
-
-  batch_eff = batch_effects[batch]    # batch effect applied for each sample
-  y<-matrix(rep(0,times=g*n),nrow=g)  # initialize count matrix
-  z = rmultinom(n,1,pi)          # sample cluster membership from multinomial of mixture proportions
-  batch_g = sample(1:g, 0.5*g)   # Apply batch on 50% of genes
-
-  cl = rep(0,n)
-  for(c in 1:k){
-    cl[z[c,]==1] = c
-  }
-  if(length(phi)==1){phi=rep(phi,g)}
-
-  if(disp=="gene"){
-    for(j in 1:g){
-      for(i in 1:n){
-        if(j %in% batch_g){
-          y[j,i] = rnbinom( 1, size = 1/phi[j], mu = size_factors[i]*2^(coefs[j,cl[i]] + batch_eff[i]))
-        } else{
-          y[j,i] = rnbinom( 1, size = 1/phi[j], mu = size_factors[i]*2^(coefs[j,cl[i]]))
-        }
-      }
+    if(length(phi0)==1){
+      phi=rep(phi0,g)
+    } else if(length(phi) != g){
+      stop("phi must be either length 1 or g")
     }
   } else if(disp=="cluster"){
-    for(j in 1:g){
-      for(i in 1:n){
-        if(j %in% batch_g){
-          y[j,i] = rnbinom( 1, size = 1/phi[j,cl[i]], mu = size_factors[i]*2^(coefs[j,cl[i]] + batch_eff[i]))
-        } else{
-          y[j,i] = rnbinom( 1, size = 1/phi[j,cl[i]], mu = size_factors[i]*2^(coefs[j,cl[i]]))
-        }
-      }
+    if(length(phi0)==K){
+      phi=matrix(phi0,nrow=g,ncol=K,byrow=TRUE)
+    } else if(length(phi0)!=(g*K)){
+      stop("phi must be gxK matrix")
     }
+  } else{
+    stop("specify 'gene' or 'cluster' for disp")
   }
 
-  result<-list(y=y,
-               clusters=cl,
-               batch=batch,
-               batch_effects=batch_effects,
-               batch_g=batch_g,       # genes on which batch effect was applied
-               size_factors=size_factors,
-               coefs=coefs,
-               phi=phi,
-               true_disc=true_disc)
-  return(result)
+  beta=matrix(beta0,nrow=g,ncol=K)
+
+  for(i in 1:nsims){
+
+    if(is.null(SF)){
+      SF=rnorm(n,1,0.25)
+      SF[SF<0.25]=0.25
+      SF[SF>2]=2
+
+      SF_pred=rnorm(n_pred,1,0.25)   # n_pred < n
+      SF_pred[SF_pred<0.25]=0.25
+      SF_pred[SF_pred>2]=2
+    } else if(length(SF)!=n){
+      stop("Custom size factors must be of length n")
+    } else{
+      SF_pred=sample(SF,n_pred,replace=T)
+    }
+
+    cls=sample(1:K,n,replace=T,prob=pK)
+    batch=sample(1:B,n,replace=T,prob=pB)-1
+
+    DEg_ID=rep(F,g)                                 # DEg across cls: just first g*pDEg genes
+    DEg_ID[1:floor(pDEg*g)]=T
+    DEb_ID=rep(F,g)                                 # select DEb across batch genes randomly
+    DEb_ID[sample(1:g,floor(pDEb*g),replace=F)]=T
+
+    LFCg_mat = matrix(0,nrow=g,ncol=K)
+    #noise_mat = matrix(rnorm(g,0,sigma_g),nrow=g,ncol=K)
+
+
+    for(j in 1:floor(pDEg*g)){
+      signLFC=(j<floor(pDEg*g/2))*2-1           # +1 for j in 1:(DEgenes/2), -1 for rest
+      LFCg_mat[j,sample(1:K,1,replace=T)] = signLFC*LFCg
+    }
+
+    cts<-simulate_counts(K=K,B=B,n=n,g=g,
+                         cls=cls,SF=SF,
+                         beta=beta,phi=phi,LFCg_mat=LFCg_mat,#noise_mat=noise_mat,
+                         batch=batch,LFCb=LFCb,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+
+    cls_pred=sample(1:K,n_pred,replace=T,prob=pK)
+    batch_pred=rep(0,n_pred)     # other batches are centered around 0. prediction batch assumed to be in the middle --> batch=0
+    cts_pred <- simulate_counts(K=K,B=1,n=n_pred,g=g,
+                                cls=cls_pred,SF=SF_pred,
+                                beta=beta,phi=phi,LFCg_mat=LFCg_mat,#noise_mat=noise_mat,
+                                batch=batch_pred,LFCb=LFCb,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+
+    sim_params=list(K=K,B=B,g=g,n=n,n_pred=n_pred,pK=pK,pB=pB,
+                    LFCg=LFCg,pDEg=pDEg,sigma_g=sigma_g,
+                    LFCb=LFCb,pDEb=pDEb,sigma_b=sigma_b,
+                    beta=beta,phi=phi,disp=disp,
+                    LFCg_mat=LFCg_mat,
+                    DEb_ID=DEb_ID)
+    sim.dat=list(cts=cts, cts_pred=cts_pred,
+                 cls=cls, cls_pred=cls_pred, batch=batch,
+                 SF=SF, SF_pred=SF_pred,
+                 DEg_ID=DEg_ID, sim_params=sim_params)
+
+    # order params in file name: K, n, LFCg, pDEg, beta, phi (use universally)
+    file.name=sprintf("%s/%s_sim%d_data.RData",
+            dir_name,file_name,i)
+    save(sim.dat,file=file.name)
+  }
+
+  file.name2=sprintf("%s/%s_dataParams.txt",dir_name,file_name)
+  sink(file=file.name2)
+
+  print(match)
+  cat(paste("\nB=",B," ,g=",g,", sigma_g=",sigma_g,", sigma_b=",sigma_b,"\n",
+            sep=""))
+  cat(paste("LFCb=",LFCb,", pDEb=",pDEb,", disp=",disp,", n_pred=",n_pred,"\n",
+            sep=""))
+  cat("\npK:\n")
+  write.table(pK,quote=F,col.names=F)
+  cat("\npB:\n")
+  write.table(pB,quote=F,col.names=F)
+  cat("\nlast sim SF:\n")
+  write.table(SF,quote=F,col.names=F)
+  cat("\nlast sim cls:\n")
+  write.table(cls,quote=F,col.names=F)
+  cat("\nlast sim SF_pred:\n")
+  write.table(SF_pred,quote=F,col.names=F)
+  cat("\nlast sim cls_pred:\n")
+  write.table(cls_pred,quote=F,col.names=F)
+
+  sink()
 }
-
-#' Simulate size factors from N(1,0.25)
-simulateSizeFactors <- function(n){
-  size_factors=rnorm(n,mean=1,sd=0.25)
-  size_factors[size_factors<0]=abs(size_factors[size_factors<0])    # replace negative value with its absolute value
-  size_factors[size_factors==0]=1        # if size_factors somehow =0, then set it to 1 (no adjustment)
-  return(size_factors)
-}
-
-
-
