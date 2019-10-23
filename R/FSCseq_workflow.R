@@ -59,7 +59,7 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
       list_res[[c]]=res
     } else{
       res=FSCseq::FSCseq(ncores=ncores,X=X, y=cts[idx,], k=K_search[c],
-                                     lambda=lambda_search[1],alpha=alpha_search[1],
+                                     lambda=0.05,alpha=0.01,
                                      size_factors=SF,norm_y=norm_y[idx,],
                                      true_clusters=true_cls, true_disc=true_disc,
                                      init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,
@@ -75,29 +75,27 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
 
   # tuning (K, lambda, alpha) jointly
   n_tune=length(K_search)*length(alpha_search)*length(lambda_search)
-  BICs=matrix(nrow=ntune,ncol=4)
+  BICs=matrix(nrow=n_tune,ncol=4)
   index=1
   list_res_tune = list()
   for(c in 1:length(K_search)){for(a in 1:length(alpha_search)){for(l in 1:length(lambda_search)){
-    if(a==1 & l==1){
-      res = list_res[[c]]
-    } else {
-      if(a>1 & l==1){
-        init_coefs=list_res[[c]]$coefs; init_phi=list_res[[c]]$phi; init_cls=list_res[[c]]$clusters
-      } else if(a>=1 & l>1){
-        init_coefs=list_res_tune[[index-1]]$coefs; init_phi=list_res_tune[[index-1]]$phi; init_cls=list_res_tune[[index-1]]$clusters
-      }
-      res = FSCseq::FSCseq(ncores=ncores,X=X, y=cts[idx,], k=K_search[c],
+
+    if(l==1){
+      init_coefs=list_res[[c]]$coefs; init_phi=list_res[[c]]$phi; init_cls=list_res[[c]]$clusters
+    } else if(l>1){
+      init_coefs=list_res_tune[[index-1]]$coefs; init_phi=list_res_tune[[index-1]]$phi; init_cls=list_res_tune[[index-1]]$clusters
+    }
+    res = FSCseq::FSCseq(ncores=ncores,X=X, y=cts[idx,], k=K_search[c],
                          lambda=lambda_search[l],alpha=alpha_search[a],
                          size_factors=SF,norm_y=norm_y[idx,],
                          true_clusters=true_cls, true_disc=true_disc,
                          init_parms=TRUE,init_coefs=init_coefs,init_phi=init_phi,init_cls=init_cls,
                          trace=trace,trace.file=trace.file,
                          mb_size=sum(idx))   # minibatching disabled after warm start
-    }
 
     list_res_tune[[index]]=res
     BICs[index,]=c(K_search[c],alpha_search[a],lambda_search[l],res$BIC)
+    print(BICs[index,])
     index=index+1
   }}}
 
@@ -106,9 +104,9 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
 
   K=length(unique(optim_res$clusters))
   cls=optim_res$clusters
-  discrimiantory=optim_res$discriminatory
+  discriminatory=optim_res$discriminatory
 
-  results=c(K=K,
+  results=list(K=K,
             cls=cls,
             discriminatory=discriminatory,
             fit=optim_res)

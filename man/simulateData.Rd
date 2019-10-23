@@ -4,48 +4,54 @@
 \alias{simulateData}
 \title{Simulate RNA-seq bulk gene expression count data}
 \usage{
-simulateData(n, k, g, pi = rep(1/k, k), coefs = NULL, beta, p_disc,
-  LFC, disp = "gene", phi, size_factors = NULL, batch_effects = 0,
-  batch = rep(1, n))
+simulateData(K, B = 1, g = 10000, n, pK = NULL, pB = NULL, LFCg,
+  pDEg, sigma_g = 0.1, LFCb = 1, pDEb = 0.5, sigma_b = 0, beta0,
+  phi0, SF = NULL, nsims = 25, disp = "gene", n_pred = 25,
+  save_dir = NULL, save_file = NULL)
 }
 \arguments{
-\item{n}{integer, sample size}
+\item{K}{integer, number of clusters}
 
-\item{k}{integer, number of clusters}
+\item{B}{integer, number of batches}
 
 \item{g}{integer, number of genes}
 
-\item{pi}{numeric vector, mixture proportions, or proportion in each cluster. Equal sizes by default}
+\item{n}{integer, number of samples}
 
-\item{coefs}{numeric matrix of simulated log2 means. Must have g rows and k columns, for each gene and cluster. If NULL, must input beta, p_disc, and LFC}
+\item{pK}{vector of length K (optional): proportion of samples in each cluster}
 
-\item{beta}{numeric or numeric vector, gene ``baseline" log2 mean. If not vector, then all genes will be simulated with same baseline}
+\item{pB}{vector of length B (optional): proportion of samples in each batch}
 
-\item{p_disc}{numeric value from 0 to 1, proportion of genes that are discriminatory (that LFC is applied).}
+\item{LFCg}{numeric, LFC for cluster-discriminatory genes}
 
-\item{LFC}{numeric value greater than 0, log2 fold change to be applied on discriminatory genes. For each gene, one random cluster simulated to be either up-regulated (add LFC) or down-regulated (subtract LFC)}
+\item{pDEg}{numeric, proportion of genes that are cluster-discriminatory}
 
-\item{disp}{string, either "gene" or "cluster". "gene" simulates gene-level overdispersion parameters, and "cluster" simulates cluster-level overdispersion parameters}
+\item{sigma_g}{numeric, Gaussian noise added from N(0,sigma_g). Default is 0.1}
 
-\item{phi}{numeric, overdispersion parameters. must be vector of length g if disp=='gene', or matrix of g rows and k columns if disp=='cluster'}
+\item{LFCb}{numeric, LFC for genes that are differentially expressed across batch. Default is 1.}
 
-\item{size_factors}{numeric vector of simulated size factors for each subject. By default, simulated from N(1,0.25)}
+\item{pDEb}{numeric, proportion of genes that are differentially expressed across batch. Default is 0.5.}
 
-\item{batch_effects}{numeric vector of effects corresponding to each level of 'batch'. Must have length equal to the number of batches specified. Effects are applied in order (i.e. first element of batch_effects refers to the effect of batch 1, etc)}
+\item{sigma_b}{numeric, Gaussian noise added to each batch (turned off, set to 0).}
 
-\item{batch}{integer vector of simulated batch of each sample. Must be numeric 1 to (number of batches).}
+\item{beta0}{numeric, baseline log2 expression for each gene before LFC is applied}
+
+\item{phi0}{numeric, baseline overdispersion for each gene}
+
+\item{SF}{vector of length n (optional), custom size factors from DESeq2. If NULL, simulated from N(1,0.25)}
+
+\item{nsims}{integer, number of datasets to simulate given the input conditions. Default is 25.}
+
+\item{disp}{string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'}
+
+\item{n_pred}{integer, number of samples in simulated prediction dataset. Default is 25}
+
+\item{save_dir}{string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'}
+
+\item{save_file}{string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'}
 }
 \value{
-list containing the following objects:
-y: count matrix of g by n
-clusters: cluster indices for each of the n samples
-batch: input known batch of each sample (all 1 by default)
-batch_effects: input batch effects for each batch (0 by default)
-batch_g: genes on which batch effects were applied (on random half of genes)
-size_factors: simulated or input size factors (by default, simulated from N(1,0.25))
-coefs: matrix of log2 means for each gene and cluster, either input matrix or constructed based on beta, p_disc, and LFC
-phi: numeric overdispersion parameters, either vector or matrix based on dispersion scheme
-true_disc: logical vector of length g, TRUE if gene is simulated discriminatory (not simulated by same beta across clusters), FALSE if not
+saved file in '<save_dir>/<save_file>_sim<1:nsims>_data.RData'
 }
 \description{
 Simulate data based on input simulation parameters. Size factors are custom input
