@@ -186,8 +186,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
                   arma::mat all_wts, arma::vec keep, arma::vec offset,
                   arma::mat theta, arma::vec coefs_j, arma::vec phi_j,
                   int cl_phi, int est_covar,
-                  double lambda, double alpha, double IRLS_tol, int maxit_IRLS,
-                  std::string optim_method){
+                  double lambda, double alpha, double IRLS_tol, int maxit_IRLS){
 
   int N = y_j.size();
   int n = N/k;    // N must be integer: N=n*k
@@ -345,15 +344,18 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
       /* Update beta */
       if(continue_beta==1){
-				if(optim_method == "direct"){
-				  beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
-					((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
-				} else if(optim_method == "GD"){
-					beta(c) = beta(c) - 1 * (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))));
-				} else if(optim_method == "NR"){
-					beta(c) = beta(c) - (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))))  /
-					(accu(vec_W(ids_c) % pow(Xc_ids_c,2))/N + lambda*(1-alpha)*(k-1));
-				}
+
+				// if(optim_method == "direct"){
+				//   beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
+				// 	((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
+				// } else if(optim_method == "GD"){
+				// 	beta(c) = beta(c) - 1 * (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))));
+				// } else if(optim_method == "NR"){
+				// 	beta(c) = beta(c) - (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))))  /
+				// 	(accu(vec_W(ids_c) % pow(Xc_ids_c,2))/N + lambda*(1-alpha)*(k-1));
+				// }
+				beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
+				  ((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
 
 				//Rprintf("c=%d,beta(c)=%f",c,beta(c));
 
@@ -398,13 +400,15 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
         arma::vec Xcolpp=X.col(k+pp);    // column of X corr to pp'th covariate
 
-        if(optim_method == "direct"){
-          gamma(pp) = accu(vec_W(ids) % Xcolpp(ids) % resid(ids))/accu(vec_W(ids) % pow(Xcolpp(ids),2));
-        } else if(optim_method == "GD"){
-          gamma(pp) = gamma(pp) - 2 * (-accu(vec_W(ids) % Xcolpp(ids) % full_resid(ids))/n);
-        } else if(optim_method == "NR"){
-          gamma(pp) = gamma(pp) - (-accu(vec_W(ids) % Xcolpp(ids) % full_resid(ids)))/(accu(vec_W(ids) % pow(Xcolpp(ids),2)));
-        }
+        // if(optim_method == "direct"){
+        //   gamma(pp) = accu(vec_W(ids) % Xcolpp(ids) % resid(ids))/accu(vec_W(ids) % pow(Xcolpp(ids),2));
+        // } else if(optim_method == "GD"){
+        //   gamma(pp) = gamma(pp) - 2 * (-accu(vec_W(ids) % Xcolpp(ids) % full_resid(ids))/n);
+        // } else if(optim_method == "NR"){
+        //   gamma(pp) = gamma(pp) - (-accu(vec_W(ids) % Xcolpp(ids) % full_resid(ids)))/(accu(vec_W(ids) % pow(Xcolpp(ids),2)));
+        // }
+
+        gamma(pp) = accu(vec_W(ids) % Xcolpp(ids) % resid(ids))/accu(vec_W(ids) % pow(Xcolpp(ids),2));
 
         /*Rprintf("covar iter%d gamma=%f, top=%f, bottom=%f\n",i,gamma(pp),accu(subs_vec_W % subs_Xcolpp % subs_resid),accu(subs_vec_W % pow(subs_Xcolpp,2)));*/
 

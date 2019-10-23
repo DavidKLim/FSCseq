@@ -7,8 +7,8 @@
 using namespace Rcpp;
 
 // M_step
-Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k, arma::mat all_wts, arma::vec keep, arma::vec offset, arma::mat theta, arma::vec coefs_j, arma::vec phi_j, int cl_phi, int est_covar, double lambda, double alpha, double IRLS_tol, int maxit_IRLS, std::string optim_method);
-RcppExport SEXP _FSCseq_M_step(SEXP XSEXP, SEXP y_jSEXP, SEXP pSEXP, SEXP jSEXP, SEXP aSEXP, SEXP kSEXP, SEXP all_wtsSEXP, SEXP keepSEXP, SEXP offsetSEXP, SEXP thetaSEXP, SEXP coefs_jSEXP, SEXP phi_jSEXP, SEXP cl_phiSEXP, SEXP est_covarSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP IRLS_tolSEXP, SEXP maxit_IRLSSEXP, SEXP optim_methodSEXP) {
+Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k, arma::mat all_wts, arma::vec keep, arma::vec offset, arma::mat theta, arma::vec coefs_j, arma::vec phi_j, int cl_phi, int est_covar, double lambda, double alpha, double IRLS_tol, int maxit_IRLS);
+RcppExport SEXP _FSCseq_M_step(SEXP XSEXP, SEXP y_jSEXP, SEXP pSEXP, SEXP jSEXP, SEXP aSEXP, SEXP kSEXP, SEXP all_wtsSEXP, SEXP keepSEXP, SEXP offsetSEXP, SEXP thetaSEXP, SEXP coefs_jSEXP, SEXP phi_jSEXP, SEXP cl_phiSEXP, SEXP est_covarSEXP, SEXP lambdaSEXP, SEXP alphaSEXP, SEXP IRLS_tolSEXP, SEXP maxit_IRLSSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -30,14 +30,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type IRLS_tol(IRLS_tolSEXP);
     Rcpp::traits::input_parameter< int >::type maxit_IRLS(maxit_IRLSSEXP);
-    Rcpp::traits::input_parameter< std::string >::type optim_method(optim_methodSEXP);
-    rcpp_result_gen = Rcpp::wrap(M_step(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS, optim_method));
+    rcpp_result_gen = Rcpp::wrap(M_step(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_FSCseq_M_step", (DL_FUNC) &_FSCseq_M_step, 19},
+    {"_FSCseq_M_step", (DL_FUNC) &_FSCseq_M_step, 18},
     {NULL, NULL, 0}
 };
 

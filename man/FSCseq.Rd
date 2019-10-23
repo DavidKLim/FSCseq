@@ -5,18 +5,14 @@
 \title{Wrapper for main FSCseq function}
 \usage{
 FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
-  size_factors = rep(1, times = ncol(y)), norm_y = y,
-  true_clusters = NULL, true_disc = NULL, init_parms = FALSE,
-  init_coefs = matrix(0, nrow = nrow(y), ncol = k),
-  init_phi = matrix(0, nrow = nrow(y), ncol = k), init_cls = NULL,
-  init_wts = NULL, init_method = "max", n_rinits = if (method ==
-  "EM") {     20 } else {     10 }, maxit_inits = if (method == "EM") {  
-    15 } else {     ceiling(log(2/nrow(y))/log(0.9)) }, maxit_EM = 100,
-  maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04,
-  disp = c("gene", "cluster"), optim_method = "direct",
-  method = c("EM", "CEM"), init_temp = sqrt(nrow(y)), trace = F,
-  trace.file = NULL, mb_size = NULL, BIC_penalty = NULL,
-  gamma = NULL, PP_filt = 0.001)
+  size_factors, norm_y, true_clusters = NULL, true_disc = NULL,
+  init_parms = FALSE, init_coefs = NULL, init_phi = NULL,
+  init_cls = NULL, init_wts = NULL, n_rinits = if (method == "EM") { 
+     20 } else {     10 }, maxit_inits = if (method == "EM") {     15 }
+  else {     ceiling(log(2/nrow(y))/log(0.9)) }, maxit_EM = 100,
+  maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04, disp = "gene",
+  method = "EM", init_temp = nrow(y), trace = F, trace.file = NULL,
+  mb_size = NULL, PP_filt = 0.001)
 }
 \arguments{
 \item{X}{(optional) design matrix of dimension n by p}
@@ -47,8 +43,6 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{init_wts}{(optional) matrix of dim k by n to denote initial clustering (allowing partial membership). If both init_cls and init_wts specified, init_wts will be ignored and init_cls used as initial clusters}
 
-\item{init_method}{if searching over (n_rinits+2) initializations (random + HC and KM inits) --> how to choose optimal init to run full EM.}
-
 \item{n_rinits}{integer, number of additional random initializations to be searched (default 50 for EM, 10 for CEM)}
 
 \item{maxit_inits}{integer, maximum number of iterations for each initialization search (default 15 for EM, or until temperature anneals down to below 2 for CEM)}
@@ -61,10 +55,6 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{IRLS_tol}{numeric, tolerance of convergence for IRLS, default is 1E-6}
 
-\item{disp}{string, either "gene" (default) or "cluster"}
-
-\item{optim_method}{string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)}
-
 \item{method}{string, either "EM" (default) or "CEM"}
 
 \item{init_temp}{numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM}
@@ -72,6 +62,8 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
 \item{mb_size}{minibatch size: # of genes to include per M step iteration}
+
+\item{PP_filt}{numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3}
 }
 \value{
 list containing outputs from EM_run() function

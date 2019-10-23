@@ -355,8 +355,7 @@ M_step_par = function(j){
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_covar=est_covar[j],
-               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
-               optim_method=optim_method)
+               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
 
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
@@ -386,7 +385,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
                       theta_list, coefs, phi,
                       cl_phi, est_phi, est_covar,
                       lambda, alpha, IRLS_tol, maxit_IRLS,
-                      optim_method, Tau, disc_ids_list, par_X){
+                      Tau, disc_ids_list, par_X){
   if(Tau<=1 & a>6){
     if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
       res=par_X[[j]]
@@ -396,8 +395,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_covar=est_covar[j],
-               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
-               optim_method=optim_method)
+               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
 
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
@@ -434,47 +432,40 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param init_phi vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE
 #' @param init_cls (optional) vector of length n, initial clustering. If NA (default), multiple initializations will be searched
 #' @param init_wts (optional) matrix of dim k by n to denote initial clustering (allowing partial membership). If both init_cls and init_wts specified, init_wts will be ignored and init_cls used as initial clusters
-#' @param init_method if searching over (n_rinits+2) initializations (random + HC and KM inits) --> how to choose optimal init to run full EM.
 #' @param n_rinits integer, number of additional random initializations to be searched (default 50 for EM, 10 for CEM)
 #' @param maxit_inits integer, maximum number of iterations for each initialization search (default 15 for EM, or until temperature anneals down to below 2 for CEM)
 #' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS algorithm, in M step (default 50)
 #' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-8
 #' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-6
-#' @param disp string, either "gene" (default) or "cluster"
-#' @param optim_method string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)
 #' @param method string, either "EM" (default) or "CEM"
 #' @param init_temp numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #' @param mb_size minibatch size: # of genes to include per M step iteration
+#' @param PP_filt numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3
 #'
 #' @return list containing outputs from EM_run() function
 #'
 #' @export
 FSCseq<-function(ncores=1,X=NULL, y, k,
                  lambda=0,alpha=0,
-                 size_factors=rep(1,times=ncol(y)),
-                 norm_y=y,
+                 size_factors,norm_y,
                  true_clusters=NULL, true_disc=NULL,
-                 init_parms=FALSE,
-                 init_coefs=matrix(0,nrow=nrow(y),ncol=k),
-                 init_phi=matrix(0,nrow=nrow(y),ncol=k),
-                 init_cls=NULL,init_wts=NULL,
-                 init_method="max",n_rinits=if(method=="EM"){20}else{10},         # fewer searches for CEM to minimize computational cost
+                 init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,init_wts=NULL,
+                 n_rinits=if(method=="EM"){20}else{10},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
-                 disp=c("gene","cluster"),optim_method="direct",
-                 method=c("EM","CEM"),init_temp=nrow(y),trace=F,trace.file=NULL,
-                 mb_size=NULL,BIC_penalty=NULL,gamma=NULL,PP_filt=1e-3){
+                 disp="gene",method="EM",init_temp=nrow(y),
+                 trace=F,trace.file=NULL,
+                 mb_size=NULL,PP_filt=1e-3){
+  # disp = "gene". disp="cluster" turned off (for now)
+  disp="gene"
+  # init_method = c("max","emaEM","BIA"). Turned off --> max: minimum BIC
+  # optim_method = c("direct","NR","GD"). Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)). All equivalent
+  # BIC_penalty = c("n","n2","ng","ng2,"en","en2","eng","eng2")     # turned off --> set to "ng"
+  # gamma=NULL: EBIC hyperparameter (EBIC turned off).
+  # set PP_filt = NULL or 0 < PP_filt < 1e-50: turn off PP_filt in M step (not recommended due to computation time)
 
-  # set PP_filt = NULL or 0 < PP_filt < 1e-50: turn off PP_filt in M step
-
-  # BIC_penalty = c("n","ng","nk")
-  if(is.null(BIC_penalty)){
-    print("no BIC_penalty specified. Default to log(n*g)")
-    BIC_penalty="ng"
-    }
-  # if(!(BIC_penalty %in% c("n","n2","ng","ng2","en","en2","eng","eng2"))){stop("BIC_penalty must be 'n', 'n2', 'ng', 'ng2', 'en', 'en2', 'eng', 'eng2'")}
 
   # y: raw counts
   # k: #clusters
@@ -493,10 +484,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   n = ncol(y)
   g = nrow(y)
   p<-if(is.null(X)){0}else{ncol(X)}         # number of covariates
-  cat(paste(method,"model with",disp,"level dispersions specified.\n"))
+  if(is.null(init_parms)){cat(paste(method,"model with",disp,"level dispersions specified.\n"))}
 
   if(is.null(X)){
-    cat("No covariates specified. Running cluster-specific intercept-only model.\n")
+    if(is.null(init_parms)){cat("No covariates specified. Running cluster-specific intercept-only model.\n")}
   } else{
     if (class(X) != "matrix") {
       tmp <- try(X <- model.matrix(~0+., data=X), silent=TRUE)
@@ -645,15 +636,14 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       fit = EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                    init_parms=F,disp=disp,
                    init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
-                   maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                   mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma,PP_filt=PP_filt)
+                   maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,
+                   mb_size=mb_size,PP_filt=PP_filt)
 
       all_fits [[i]] = fit
       init_cls_BIC[i] <- fit$BIC
     }
 
     ## Selecting maximum BIC model ##
-    if(init_method=="max"){
       fit_id = which.min(init_cls_BIC)[1]
       init_cls = all_fits[[fit_id]]$clusters
       init_parms = T
@@ -663,68 +653,67 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
         cat("FINAL INITIALIZATION:\n")
         cat(paste(colnames(all_init_cls)[fit_id],"\n"))
       }
-      if(length(unique(init_cls))<k){
-        warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
-        if(trace){
-          if(!is.null(trace.file)){
-            sink()
-          }
-        }
-        return(all_fits[[fit_id]])
-        }
-    }
+      # if(length(unique(init_cls))<k){
+      #   warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
+      #   if(trace){
+      #     if(!is.null(trace.file)){
+      #       sink()
+      #     }
+      #   }
+      #   return(all_fits[[fit_id]])
+      # }
 
-    if(init_method %in% c("emaEM","BIA")){
-      #### Consensus methods ####
-      # Create Z matrices and calculate weights
-      list_Z = list()
-      w_BIC_emaEM = rep(NA,n_inits)
-      w_BIC_emaEM_logdenom = logsumexpc(-0.5*init_cls_BIC)
-
-      max_BIC = max(init_cls_BIC,na.rm=T)
-      w_BIC_BIA = rep(NA,n_inits)
-      w_BIC_BIA_logdenom = logsumexpc(-0.5*(init_cls_BIC-max_BIC))
-      for(m in 1:n_inits){
-        list_Z[[m]] = matrix(0,nrow=k,ncol=n)
-        for(c in 1:k){
-          list_Z[[m]][c,]=(all_init_cls[,m]==c)^2
-        }
-        # w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*init_cls_BIC[m]-w_BIC_emaEM_logdenom)}
-        # w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*(init_cls_BIC[m]-max_BIC)-w_BIC_BIA_logdenom)}
-        ##### EXPERIMENT #####
-        temp=1     # temp=1 is the same as regular emaEM and BIA
-        w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*init_cls_BIC[m]-logsumexpc((-0.5*init_cls_BIC)*(1/temp)))}
-        w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*(init_cls_BIC[m]-max_BIC)-logsumexpc((-0.5*(init_cls_BIC-max_BIC))*(1/temp)))}
-      }
-
-      ## emaEM method (Michael & Melnykov 2016) ##
-      if(init_method == "emaEM"){
-        # create y_m, A_m for all inits --> A --> HC --> replace init_cls
-        A = matrix(0,n,n)
-        for(m in 1:n_inits){
-          # construct A_m matrix for all inits (y_m omitted to conserve memory. can obtain if you take out w_BIC_emaEM[m] = 1)
-          # sum directly here to save memory
-          A_m=matrix(NA,n,n)
-          for(i in 1:n){
-            for(ii in 1:n){
-              A_m[i,ii] = w_BIC_emaEM[m]*all(list_Z[[m]][,i] == list_Z[[m]][,ii])^2   # if all wts for sample i and sample ii are the same --> y_m[i,ii]=1. otherwise, 0
-            }
-          }
-          A = A + A_m
-        }
-        model = hclust(as.dist(A),method="average")
-        init_cls <- cutree(hclust(as.dist(A),method="average"),k=k)
-      }
-
-      ## BIA method (Hagan & White 2018) ##
-      if(init_method == "BIA"){
-        # create Z* = sum(w*Z) --> replace init_wts
-        init_wts=matrix(0,nrow=k,ncol=n)
-        for(m in 1:n_inits){
-          init_wts = init_wts + w_BIC_BIA[m]*list_Z[[m]]
-        }
-      }
-    }
+    # if(init_method %in% c("emaEM","BIA")){
+    #   #### Consensus methods ####
+    #   # Create Z matrices and calculate weights
+    #   list_Z = list()
+    #   w_BIC_emaEM = rep(NA,n_inits)
+    #   w_BIC_emaEM_logdenom = logsumexpc(-0.5*init_cls_BIC)
+    #
+    #   max_BIC = max(init_cls_BIC,na.rm=T)
+    #   w_BIC_BIA = rep(NA,n_inits)
+    #   w_BIC_BIA_logdenom = logsumexpc(-0.5*(init_cls_BIC-max_BIC))
+    #   for(m in 1:n_inits){
+    #     list_Z[[m]] = matrix(0,nrow=k,ncol=n)
+    #     for(c in 1:k){
+    #       list_Z[[m]][c,]=(all_init_cls[,m]==c)^2
+    #     }
+    #     # w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*init_cls_BIC[m]-w_BIC_emaEM_logdenom)}
+    #     # w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*(init_cls_BIC[m]-max_BIC)-w_BIC_BIA_logdenom)}
+    #     ##### EXPERIMENT #####
+    #     temp=1     # temp=1 is the same as regular emaEM and BIA
+    #     w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*init_cls_BIC[m]-logsumexpc((-0.5*init_cls_BIC)*(1/temp)))}
+    #     w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*(init_cls_BIC[m]-max_BIC)-logsumexpc((-0.5*(init_cls_BIC-max_BIC))*(1/temp)))}
+    #   }
+    #
+    #   ## emaEM method (Michael & Melnykov 2016) ##
+    #   if(init_method == "emaEM"){
+    #     # create y_m, A_m for all inits --> A --> HC --> replace init_cls
+    #     A = matrix(0,n,n)
+    #     for(m in 1:n_inits){
+    #       # construct A_m matrix for all inits (y_m omitted to conserve memory. can obtain if you take out w_BIC_emaEM[m] = 1)
+    #       # sum directly here to save memory
+    #       A_m=matrix(NA,n,n)
+    #       for(i in 1:n){
+    #         for(ii in 1:n){
+    #           A_m[i,ii] = w_BIC_emaEM[m]*all(list_Z[[m]][,i] == list_Z[[m]][,ii])^2   # if all wts for sample i and sample ii are the same --> y_m[i,ii]=1. otherwise, 0
+    #         }
+    #       }
+    #       A = A + A_m
+    #     }
+    #     model = hclust(as.dist(A),method="average")
+    #     init_cls <- cutree(hclust(as.dist(A),method="average"),k=k)
+    #   }
+    #
+    #   ## BIA method (Hagan & White 2018) ##
+    #   if(init_method == "BIA"){
+    #     # create Z* = sum(w*Z) --> replace init_wts
+    #     init_wts=matrix(0,nrow=k,ncol=n)
+    #     for(m in 1:n_inits){
+    #       init_wts = init_wts + w_BIC_BIA[m]*list_Z[[m]]
+    #     }
+    #   }
+    # }
 
   }
 
@@ -740,8 +729,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
-                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,optim_method=optim_method,
-                 mb_size=mb_size,BIC_penalty=BIC_penalty,gamma=gamma,PP_filt=PP_filt)
+                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,
+                 mb_size=mb_size,PP_filt=PP_filt)
 
   end_FSC = as.numeric(Sys.time())
   results$total_time_elap = end_FSC-start_FSC
@@ -781,7 +770,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-6
 #' @param disp string, either "gene" (default) or "cluster"
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
-#' @param optim_method string, three options "direct", "NR", or "GD". Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)
 #'
 #' @return FSCseq object: list containing outputs
 #' k: integer order,
@@ -819,8 +807,8 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
-                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,optim_method="direct",
-                   mb_size=NULL,BIC_penalty,gamma=NULL,PP_filt){
+                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,
+                   mb_size=NULL,PP_filt){
 
   start_time <- Sys.time()
 
@@ -921,7 +909,7 @@ EM_run <- function(ncores,X=NA, y, k,
   # all_temp_list = list()
   # all_theta_list = list()
 
-  lower_K=FALSE         # tracks when number of a mixture component --> 0
+  # lower_K=FALSE         # tracks when number of a mixture component --> 0
 
   cl_agreement = rep(NA,maxit_EM)
   par_X=rep(list(list()),g)         # store M_step results
@@ -1024,7 +1012,7 @@ EM_run <- function(ncores,X=NA, y, k,
         clusterEvalQ(cl=clust,library(FSCseq))
         clusterExport(cl=clust,varlist=c("XX","y","p","a","k","wts","keep","offsets",
                                          "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
-                                         "lambda","alpha","IRLS_tol","maxit_IRLS","optim_method",
+                                         "lambda","alpha","IRLS_tol","maxit_IRLS",
                                          "disc_ids_list","Tau","par_X"),envir=environment())
         par_X_mb = parallel::parLapply(clust, mb_genes, M_step_par)
         stopCluster(clust)
@@ -1036,7 +1024,7 @@ EM_run <- function(ncores,X=NA, y, k,
                       theta_list, coefs, phi,
                       cl_phi, est_phi, est_covar,
                       lambda, alpha, IRLS_tol, maxit_IRLS,
-                      optim_method, Tau, disc_ids_list, par_X)
+                      Tau, disc_ids_list, par_X)
         })
       }
       par_X[mb_genes] = par_X_mb     # replace minibatch results
@@ -1048,9 +1036,7 @@ EM_run <- function(ncores,X=NA, y, k,
                                      all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                                      theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                                      cl_phi=cl_phi,est_covar=est_covar[j],
-                                     lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
-                                     optim_method=optim_method     # added optim_method: need to update M_step.cpp in package
-        )
+                                     lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
@@ -1204,13 +1190,13 @@ EM_run <- function(ncores,X=NA, y, k,
 
     # if all PP's for a particular cluster is < PP_filt (threshold for keep).
     # shouldn't happen now: if any rowSums(keep) == 0, those rows are set to 1 at beginning of EM
-    if(any(rowSums(keep)==0)){
-      lower_K=TRUE
-      finalwts=wts
-      pi[rowSums(keep)==0] = 1e-50      # this mixt. proportion --> 0
-      warning(sprintf("No samples in a cluster %dth E step",a))
-      break
-    }
+    # if(any(rowSums(keep)==0)){
+    #   lower_K=TRUE
+    #   finalwts=wts
+    #   pi[rowSums(keep)==0] = 1e-50      # this mixt. proportion --> 0
+    #   warning(sprintf("No samples in a cluster %dth E step",a))
+    #   break
+    # }
 
     #print(current_clusters)
     if(trace){
@@ -1285,84 +1271,84 @@ EM_run <- function(ncores,X=NA, y, k,
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
 
-  if(BIC_penalty %in% c("n","n2","en","en2")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
+  # if(BIC_penalty %in% c("n","n2","en","en2")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
 
-  # add log(1+g*n_eff) for all log2 baseline estimates (betas)
-  BIC_penalty_term2n=0
-  BIC_penalty_term2ng=0
-  for(j in 1:g){
-    unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
-    for(i in 1:length(unique_thetas)){
-      cls_ids = which(theta_list[[j]][1,]==unique_thetas[i])      # returns all cluster indices corr to unique theta value
-      n_cls_ids = sum(final_clusters %in% cls_ids)                # returns number of samples in that cluster
-      BIC_penalty_term2ng = BIC_penalty_term2ng + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
-      BIC_penalty_term2n = BIC_penalty_term2n + log(1 + n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
-    }
-  }
-  # add in mixture proportions, gene disps, and cov effects
-  BIC_penalty_term2ng = BIC_penalty_term2ng + ((k-1) + (p+1)*g)*log(g*n)
-  BIC_penalty_term2n = BIC_penalty_term2n + ((k-1) + (p+1)*g)*log(n)
+  # # add log(1+g*n_eff) for all log2 baseline estimates (betas)
+  # BIC_penalty_term2n=0
+  # BIC_penalty_term2ng=0
+  # for(j in 1:g){
+  #   unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
+  #   for(i in 1:length(unique_thetas)){
+  #     cls_ids = which(theta_list[[j]][1,]==unique_thetas[i])      # returns all cluster indices corr to unique theta value
+  #     n_cls_ids = sum(final_clusters %in% cls_ids)                # returns number of samples in that cluster
+  #     BIC_penalty_term2ng = BIC_penalty_term2ng + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
+  #     BIC_penalty_term2n = BIC_penalty_term2n + log(1 + n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
+  #   }
+  # }
+  # # add in mixture proportions, gene disps, and cov effects
+  # BIC_penalty_term2ng = BIC_penalty_term2ng + ((k-1) + (p+1)*g)*log(g*n)
+  # BIC_penalty_term2n = BIC_penalty_term2n + ((k-1) + (p+1)*g)*log(n)
 
-  # for straight BIC approx log(n) or log(ng) (NA for the '2's)
-  BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params } else{NA}
+  ## for straight BIC approx log(n) or log(ng) (NA for the '2's)
+  # BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params } else{NA}
 
-  P = g*(k+p+1) + (k-1)
-  if(is.null(gamma)){
-    kappa = log(P)/log(eff_n)
-    gamma = 1 - 1/(2*kappa)
-  }
-  log_choose=function(P,j){
-    # returns log(choose(P,j)), avoiding overflow issues
-    if(j<P){
-      return( sum(log(seq(j+1,P,1))) - sum(log(seq(1,P-j,1))) )
-    } else if(j==P){
-      return( 0 )
-    }
-  }
-  eBIC_term = 2*gamma*log_choose(P,num_est_params)
-  BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){
-        BIC_penalty_term1
-      }else if(BIC_penalty %in% c("ng2","eng2")){
-        BIC_penalty_term2ng
-      }else if(BIC_penalty %in% c("n2","en2")){
-        BIC_penalty_term2n
-      }
+  # P = g*(k+p+1) + (k-1)
+  #   kappa = log(P)/log(eff_n)
+  #   gamma = 1 - 1/(2*kappa)
+  # log_choose=function(P,j){
+  #   # returns log(choose(P,j)), avoiding overflow issues
+  #   if(j<P){
+  #     return( sum(log(seq(j+1,P,1))) - sum(log(seq(1,P-j,1))) )
+  #   } else if(j==P){
+  #     return( 0 )
+  #   }
+  # }
+  # eBIC_term = 2*gamma*log_choose(P,num_est_params)
+  # BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){
+  #       BIC_penalty_term1
+  #     }else if(BIC_penalty %in% c("ng2","eng2")){
+  #       BIC_penalty_term2ng
+  #     }else if(BIC_penalty %in% c("n2","en2")){
+  #       BIC_penalty_term2n
+  #     }
 
-  BIC = if(BIC_penalty %in% c("n","n2","ng","ng2")){
-    -2*log_L + BIC_penalty_term
-  } else if(BIC_penalty %in% c("en","en2","eng","eng2")){
-    -2*log_L + BIC_penalty_term + eBIC_term
-  }
+  # BIC = if(BIC_penalty %in% c("n","n2","ng","ng2")){
+  #   -2*log_L + BIC_penalty_term
+  # } else if(BIC_penalty %in% c("en","en2","eng","eng2")){
+  #   -2*log_L + BIC_penalty_term + eBIC_term
+  # }
+  # BIC_n = -2*log_L + log(n)*num_est_params
+  # BIC_n2 = -2*log_L + BIC_penalty_term2n
+  # BIC_ng = -2*log_L + log(n*g)*num_est_params
+  # BIC_ng2 = -2*log_L + BIC_penalty_term2ng
+  # eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
+  # eBIC_n2 = -2*log_L + BIC_penalty_term2n + eBIC_term
+  # eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
+  # eBIC_ng2 = -2*log_L + BIC_penalty_term2ng + eBIC_term
 
-  BIC_n = -2*log_L + log(n)*num_est_params
-  BIC_n2 = -2*log_L + BIC_penalty_term2n
-  BIC_ng = -2*log_L + log(n*g)*num_est_params
-  BIC_ng2 = -2*log_L + BIC_penalty_term2ng
-  eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
-  eBIC_n2 = -2*log_L + BIC_penalty_term2n + eBIC_term
-  eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
-  eBIC_ng2 = -2*log_L + BIC_penalty_term2ng + eBIC_term
+  eff_n=n*g
+  BIC_penalty_term = log(eff_n)*num_est_params
+  BIC = -2*log_L + BIC_penalty_term
 
 
-  if(lower_K){
-    stop("something's wrong: this shouldn't be happening anymore")
-    # print("K not optimal. clusters identified: cls")
-    # print(unique(current_clusters))
-    # k=length(unique(current_clusters))
-    # BIC=Inf
-  }
+  # if(lower_K){
+  #   stop("something's wrong: this shouldn't be happening anymore")
+  #   # print("K not optimal. clusters identified: cls")
+  #   # print(unique(current_clusters))
+  #   # k=length(unique(current_clusters))
+  #   # BIC=Inf
+  # }
 
   if(trace){
+    # cat(paste("log(n) =",log(n),"\n"))
+    # cat(paste("sum(log(1+n_eff)) =",BIC_penalty_term2n,"\n"))
+    # cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2ng,"\n"))
+    # cat(paste("BIC(n,n2,ng,ng2,en,en2,eng,eng2)=\n",BIC_n,"\n",BIC_n2,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_n2,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
     cat(paste("total # params estimated =",num_est_params,"\n"))
     cat(paste("-2log(L) =",-2*log_L,"\n"))
-    cat(paste("log(n) =",log(n),"\n"))
     cat(paste("log(n*g) =",log(n*g),"\n"))
-    cat(paste("sum(log(1+n_eff)) =",BIC_penalty_term2n,"\n"))
-    cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2ng,"\n"))
     cat(paste("BIC =",BIC,"\n"))
-    cat(paste("gamma =",gamma,"\n"))
-    cat(paste("BIC(n,n2,ng,ng2,en,en2,eng,eng2)=\n",BIC_n,"\n",BIC_n2,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_n2,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
     cat(paste("Tau =",Tau,"\n"))
 
     disc_stats=cbind(m,(!nondiscriminatory)^2,disc_ids^2)
@@ -1396,18 +1382,20 @@ EM_run <- function(ncores,X=NA, y, k,
                pi=pi,
                coefs=coefs,
                Q=Q[1:a],
-               BIC=BIC, BIC_n=BIC_n, BIC_ng=BIC_ng, BIC_ng2=BIC_ng2,
-               eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_ng2=eBIC_ng2, eBIC_term=eBIC_term, gamma=gamma,
+               BIC=BIC,
+               # BIC_n=BIC_n, BIC_ng=BIC_ng, BIC_ng2=BIC_ng2,
+               # eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_ng2=eBIC_ng2, eBIC_term=eBIC_term, gamma=gamma,
                discriminatory=!(nondiscriminatory),
                init_clusters=init_cls,#init_coefs=init_coefs,init_phi=init_phi,
                clusters=final_clusters,
                phi=phi,num_est_params=num_est_params,m=m,
-               #logL=log_L,
+               log_L=log_L,
                wts=wts,
                time_elap=time_elap,
                lambda=lambda,
                alpha=alpha,
-               size_factors=size_factors,norm_y=norm_y,DNC=DNC,n_its=a,lower_K=lower_K
+               size_factors=size_factors,#norm_y=norm_y,
+               DNC=DNC,n_its=a#,lower_K=lower_K
   )
   return(result)
 }
@@ -1460,7 +1448,7 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   # fit is the output object from the EM() function
 
-  # # if EM fit lost mixture components
+  # # if EM fit lost mixture components (turned off now. can lose mixt component)
   # existing_cls = unique(fit$clusters)[order(unique(fit$clusters))]      # accounts for if lower K was selected
   # k=length(existing_cls)
   # # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
@@ -1469,17 +1457,9 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   # } else{matrix(fit$coefs[idx,existing_cls],nrow=g,ncol=k)}
   # pi=fit$pi[existing_cls]
 
-  # warning: order may not be preserved
+  init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,],nrow=sum(idx))}
 
-  init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,c(existing_cls)],nrow=sum(idx))}
-
-
-  init_lambda=fit$lambda
-  init_alpha=fit$alpha
-
-
-  init_size_factors = size_factors_pred
-  offsets=log2(init_size_factors)
+  offsets=log2(size_factors_pred)
 
 
   # nb log(f_k(y_i))
@@ -1491,7 +1471,6 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   for(i in 1:n){
     for(c in 1:k){
-
       if(cl_phi){
         l[c,i]<-sum(dnbinom(y_pred[,i],size=1/init_phi[,c],mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
       } else if(!cl_phi){

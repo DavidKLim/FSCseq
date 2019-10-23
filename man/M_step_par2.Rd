@@ -5,8 +5,8 @@
 \title{Parallelized M step (mclapply)}
 \usage{
 M_step_par2(j, XX, y, p, a, k, wts, keep, offsets, theta_list, coefs, phi,
-  cl_phi, est_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS,
-  optim_method, Tau, disc_ids_list, par_X)
+  cl_phi, est_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS, Tau,
+  disc_ids_list, par_X)
 }
 \arguments{
 \item{j}{gene index}
