@@ -1,6 +1,30 @@
+#' Minimal workflow for FSCseq
+#'
+#' Full FSCseq workflow based on minimal working defaults
+#'
+#' @param cts integer matrix, count matrix of dimension g by n. Must be integers (counts)
+#' @param ncores integer, number of cores (for parallel computing). Default is 1
+#' @param batch vector of batch, to use as covariates. Default is no batches.
+#' @param true_cls (optional) integer vector of true groups, if available, for diagnostic tracking.
+#' @param true_disc (optional) logical vector of true discriminatory genes, if available, for diagnostic tracking.
+#' @param method string, either "EM" or "CEM". Default is "EM"
+#' @param n_rinits integer, number of additional random initializations (on top of Hierarchical and K-means) to be searched. Default is 20
+#' @param med_filt numeric, threshold for minimum median gene normalized count for pre-filtering. med_filt=0 pre-filters no genes via this criterion. Default is 500.
+#' @param MAD_filt numeric, value between 0 and 100. quantile threshold for gene log MAD of normalized count. MAD_filt=0 pre-filters no genes via this criterion. Default is 50.
+#' @param K_search integer vector, values of K (number of clusters) to be searched. Default is 2:6
+#' @param lambda_search numeric vector, values of lambda to be searched. Default is seq(0.25,3,0.25)
+#' @param alpha_search numeric vector, values of alpha to be searched. Default is c(0.01,seq(0.05,0.50,0.05))
+#' @param OS_save logical, TRUE: saves progress of computationally costly warm starts (multiple initializations). Default is TRUE
+#' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
+#' @param trace.file (optional) string, file name to store trace output. For example: 'test.txt'
+#' @param nMB integer, number of minibatches to use in M step. Default is 5
+#'
+#' @return list with K, cls, discriminatory, and fit
+#'
+#' @export
 FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,true_disc=NULL,
                            method="EM",n_rinits=20,med_filt=500,MAD_filt=50,
-                           K_search=c(2:6),lambda_search=seq(0.25,5,0.25),alpha_search=c(0.01,seq(0.05,0.75,0.05)),
+                           K_search=c(2:6),lambda_search=seq(0.25,3,0.25),alpha_search=c(0.01,seq(0.05,0.5,0.05)),
                            OS_save=TRUE,trace=F,trace.file=NULL,nMB=5){
 
   dir_name="Saved_Results"
