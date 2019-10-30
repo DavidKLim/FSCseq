@@ -69,8 +69,8 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
          FALSE)
 
   if(is.null(save_file)){
-    file_name=sprintf("%s/%d_%d_%f_%f_%f_%f",
-                      dir_name,K,n,LFCg,pDEg,beta0[1],phi0[1])   # just the first elt of beta0 and phi0
+    file_name=sprintf("%d_%d_%f_%f_%f_%f",
+                      K,n,LFCg,pDEg,beta0[1],phi0[1])   # just the first elt of beta0 and phi0
   }else{file_name=save_file}
 
   match=match.call()

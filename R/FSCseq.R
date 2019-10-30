@@ -41,11 +41,11 @@ theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine
 {
   lambda=1E-25
   score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (digamma(th +
-                                                        y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
-                                                                                                           th)/(mu + th))) + th*lambda}
+                                                                      y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
+                                                                                                                         th)/(mu + th))) + th*lambda}
   info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
-                                                         y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
-                                                                                                              th)^2)) + lambda}
+                                                                       y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
+                                                                                                                            th)^2)) + lambda}
   if (inherits(y, "lm")) {
     mu <- y$fitted.values
     y <- if (is.null(y$y))
@@ -362,10 +362,10 @@ M_step_par = function(j){
     mu = 2^(XX %*% res$coefs_j + offsets)
 
     phi_g_temp=phi.ml(y=as.integer(rep(y[j,],k))[ids],
-                 mu=mu[ids],
-                 dfr=sum(ids)-1,
-                 weights=c(t(wts))[ids],
-                 limit=25,trace=F)
+                      mu=mu[ids],
+                      dfr=sum(ids)-1,
+                      weights=c(t(wts))[ids],
+                      limit=25,trace=F)
     res$phi_j = rep(phi_g_temp,k)
   } else{ res$phi_j=phi[j,]}
   return(res)
@@ -381,11 +381,11 @@ M_step_par = function(j){
 #'
 #' @export
 M_step_par2 = function(j, XX, y, p, a, k,
-                      wts, keep, offsets,
-                      theta_list, coefs, phi,
-                      cl_phi, est_phi, est_covar,
-                      lambda, alpha, IRLS_tol, maxit_IRLS,
-                      Tau, disc_ids_list, par_X){
+                       wts, keep, offsets,
+                       theta_list, coefs, phi,
+                       cl_phi, est_phi, est_covar,
+                       lambda, alpha, IRLS_tol, maxit_IRLS,
+                       Tau, disc_ids_list, par_X){
   if(Tau<=1 & a>6){
     if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
       res=par_X[[j]]
@@ -455,7 +455,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  n_rinits=if(method=="EM"){20}else{10},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
-                 disp="gene",method="EM",init_temp=nrow(y),
+                 # disp="gene",
+                 method="EM",init_temp=nrow(y),
                  trace=F,trace.file=NULL,
                  mb_size=NULL,PP_filt=1e-3){
   # disp = "gene". disp="cluster" turned off (for now)
@@ -486,6 +487,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   p<-if(is.null(X)){0}else{ncol(X)}         # number of covariates
   if(is.null(init_parms)){cat(paste(method,"model with",disp,"level dispersions specified.\n"))}
 
+  # check inputs #
   if(is.null(X)){
     if(is.null(init_parms)){cat("No covariates specified. Running cluster-specific intercept-only model.\n")}
   } else{
@@ -497,22 +499,29 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
     if (ncol(y) != nrow(X)) stop("X and y do not have the same number of observations")
     if (any(is.na(y)) | any(is.na(X))) stop("Missing data (NA's) detected.  Take actions (e.g., removing cases, removing features, imputation) to eliminate missing data before passing X and y")
   }
-
-  if(alpha < 0 | alpha >= 1){
-    stop("alpha must be 0 <= alpha < 1")
+  if(alpha < 0 | alpha >= 1){stop("alpha must be 0 <= alpha < 1")}
+  if(lambda<0){stop("lambda must be greater than 0")}
+  if(method=="EM"){CEM=F} else if(method=="CEM"){CEM=T} else{stop("method must be 'EM' or 'CEM'.")}
+  if(CEM){if(init_temp<0){stop('init_temp must be greater than 0')}}
+  if(length(size_factors) != n){stop("size_factors must be of length n")}
+  if(any(size_factors <= 0)){stop("size_factors must be > 0")}
+  if(any(y < 0) | any(norm_y < 0)){stop("y and norm_y must all be >= 0")}
+  if(ncores%%1!=0 | k%%1!=0 | n_rinits%%1!=0 | maxit_inits%%1!=0 | maxit_EM%%1!=0 | maxit_IRLS%%1!=0){stop('ncores, k, n_rinits, maxit_inits, maxit_EM, and maxit_IRLS must all be positive integers')}
+  if(EM_tol<0 | IRLS_tol<0 | EM_tol>1 | IRLS_tol>1){stop('EM_tol and IRLS_tol must be between 0 and 1')}
+  if(PP_filt<0 | PP_filt>=1){stop('PP_filt must be 0 <= PP_filt < 1')}
+  if(!is.null(mb_size)){if(mb_size>g | mb_size<=0){stop('mb_size must be 0 < mb_size <= g')}}
+  if(init_parms){if(is.null(init_coefs) | is.null(init_phi)){stop("init_coefs (gxk matrix) and init_phi (vector of length g) must be input if init_parms=TRUE")}}
+  if(!is.null(init_cls)){
+    if(length(unique(init_cls))>k){stop("Too many cluster levels in init_cls (less than specified value of k)")}
+    if(length(init_cls) != n){stop("Length of initial clusters not equal to n")}
   }
-  if(lambda<0){
-    stop("lambda must be greater than 0")
+  if(!is.null(init_wts)){
+    if (class(init_wts) != "matrix") {
+      tmp <- try(init_wts <- model.matrix(~0+., data=init_wts), silent=TRUE)
+      if (class(tmp)[1] == "try-error") stop("init_wts must be a matrix or able to be coerced to a matrix")
+    }
+    if(nrow(init_wts)!=k | ncol(init_wts)!=n){stop('init_wts must be matrix of k rows and n columns')}
   }
-
-  if(method=="EM"){
-    CEM=F
-  } else if(method=="CEM"){
-    CEM=T
-  } else{
-    stop("method must be 'EM' or 'CEM'.")
-  }
-
   if(!is.null(true_clusters)){
     if(length(true_clusters) != n){
       warning("Length of true clusters not equal to n, can't track diagnostics")
@@ -525,9 +534,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       true_disc=NULL
     }
   }
-  if(!is.null(init_cls)){
-    if(length(init_cls) != n){stop("Length of initial clusters not equal to n")}
-  }
 
   ## Diagnostic file
   if(trace){
@@ -535,7 +541,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       sink(file=trace.file)
     }
   }
-
   if(trace){
     cat(paste(sprintf("n=%d, g=%d, k=%d, l=%f, alph=%f, ",n,g,k,lambda,alpha),"\n"))
     cat("True clusters:\n")
@@ -544,7 +549,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   }
 
   init_Tau=1               # Tau=1 is classic EM. If CEM, then if k=1 or if there are initial clusters input
-                           # then init temp = 1 (assuming initial clusters are good --> don't want to perturb it)
+  # then init temp = 1 (assuming initial clusters are good --> don't want to perturb it)
 
   n_mb = if(!is.null(mb_size)){ceiling(g/mb_size)     # number of minibatches in g. default: 1. experiment with 5 (mb_size = g/5)
   }else{1}
@@ -644,24 +649,24 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
     }
 
     ## Selecting maximum BIC model ##
-      fit_id = which.min(init_cls_BIC)[1]
-      init_cls = all_fits[[fit_id]]$clusters
-      init_parms = T
-      init_coefs = all_fits[[fit_id]]$coefs
-      init_phi = all_fits[[fit_id]]$phi
-      if(trace){
-        cat("FINAL INITIALIZATION:\n")
-        cat(paste(colnames(all_init_cls)[fit_id],"\n"))
-      }
-      # if(length(unique(init_cls))<k){
-      #   warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
-      #   if(trace){
-      #     if(!is.null(trace.file)){
-      #       sink()
-      #     }
-      #   }
-      #   return(all_fits[[fit_id]])
-      # }
+    fit_id = which.min(init_cls_BIC)[1]
+    init_cls = all_fits[[fit_id]]$clusters
+    init_parms = T
+    init_coefs = all_fits[[fit_id]]$coefs
+    init_phi = all_fits[[fit_id]]$phi
+    if(trace){
+      cat("FINAL INITIALIZATION:\n")
+      cat(paste(colnames(all_init_cls)[fit_id],"\n"))
+    }
+    # if(length(unique(init_cls))<k){
+    #   warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
+    #   if(trace){
+    #     if(!is.null(trace.file)){
+    #       sink()
+    #     }
+    #   }
+    #   return(all_fits[[fit_id]])
+    # }
 
     # if(init_method %in% c("emaEM","BIA")){
     #   #### Consensus methods ####
@@ -887,9 +892,9 @@ EM_run <- function(ncores,X=NA, y, k,
 
   est_phi=rep(1,g)                          # 1 for true, 0 for false
   est_covar = if(covars){rep(1,g)
-      } else{
-        rep(0,g)
-      }
+  } else{
+    rep(0,g)
+  }
 
   # if PP_filt is not set to NULL --> keep only obs/cl in M step > PP_filt threshold
   if(!is.null(PP_filt)){
@@ -999,9 +1004,9 @@ EM_run <- function(ncores,X=NA, y, k,
     # if(a<5){
     #   mb_genes = 1:g
     # } else{
-      if(!is.null(mb_size)){
-        mb_genes = sample(1:g,mb_size,replace=F)
-      } else{ mb_genes=1:g}
+    if(!is.null(mb_size)){
+      mb_genes = sample(1:g,mb_size,replace=F)
+    } else{ mb_genes=1:g}
     # }
 
     if(ncores>1){
@@ -1033,10 +1038,10 @@ EM_run <- function(ncores,X=NA, y, k,
       for(j in mb_genes){
         if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
         par_X[[j]] <- M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
-                                     all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
-                                     theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-                                     cl_phi=cl_phi,est_covar=est_covar[j],
-                                     lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
+                             all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
+                             theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
+                             cl_phi=cl_phi,est_covar=est_covar[j],
+                             lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
@@ -1222,19 +1227,19 @@ EM_run <- function(ncores,X=NA, y, k,
         # print number of IRLS iters, coefs, and phi for picked disc gene
         cat(paste("Disc Gene",disc_gene,": # of IRLS iterations used in M step:",nrow(temp_list[[disc_gene]][rowSums(temp_list[[disc_gene]])!=0,]),"\n"))
         cat(paste("coef:",coefs[disc_gene,],"\n"))
-          cat(paste("phi:",phi[disc_gene,],"\n"))
+        cat(paste("phi:",phi[disc_gene,],"\n"))
 
         # print number of IRLS iters, coefs, and phi for picked nondisc gene
         cat(paste("Nondisc Gene",nondisc_gene,": # of IRLS iterations used in M step:",nrow(temp_list[[nondisc_gene]][rowSums(temp_list[[nondisc_gene]])!=0,]),"\n"))
         cat(paste("coef:",coefs[nondisc_gene,],"\n"))
-          cat(paste("phi:",phi[nondisc_gene,],"\n"))
+        cat(paste("phi:",phi[nondisc_gene,],"\n"))
 
       } else{
         # if true_disc not specified, just track one gene (first one tincluded in minibatch for that M step iter)
         sel_gene = mb_genes[1]
         cat(paste(sprintf("Gene%d: # of IRLS iterations used in M step:",sel_gene),nrow(temp_list[[sel_gene]][rowSums(temp_list[[sel_gene]])!=0,]),"\n"))
         cat(paste("coef:",coefs[sel_gene,],"\n"))
-          cat(paste("phi:",phi[sel_gene,],"\n"))
+        cat(paste("phi:",phi[sel_gene,],"\n"))
       }
       cat(paste("Samp1: PP:",wts[,1],"\n"))
       EMend = as.numeric(Sys.time())
@@ -1426,25 +1431,28 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
     if (any(is.na(X))) {stop("Missing data (NA's) detected.  Take actions (e.g., removing cases, removing features, imputation) to eliminate missing data before passing X")}
   }
 
-  covars = !is.null(X)
-  if(covars){
-    p=ncol(X)
-  } else{
-    cat("No covariates specified")
-    p=0
-  }
 
   if(length(size_factors_pred) != ncol(y_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
 
   idx=fit$discriminatory
-  y_pred=y_pred[idx,]      # subset to just disc genes found by FSCseq run
   n=ncol(y_pred)
+  y_pred=matrix(y_pred[idx,],ncol=n)      # subset to just disc genes found by FSCseq run
   # g=nrow(y_pred)
   g=sum(idx)
   pi=fit$pi
   k=length(pi)
 
   cl_phi=!is.null(dim(fit$phi))  # dimension of phi is null when gene-wise (vector)
+
+  covars = !is.null(X)
+  if(covars){
+    p=ncol(X)
+    init_coefs=fit$coefs[idx,]
+  } else{
+    cat("No covariates specified")
+    p=0
+    init_coefs=fit$coefs[idx,1:k]
+  }
 
   # fit is the output object from the EM() function
 
