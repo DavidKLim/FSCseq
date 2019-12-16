@@ -108,7 +108,7 @@ print(paste("FPR: ",sum(!true_disc & FSC_disc)/sum(!true_disc)))
 
 ```
 
-To plot a heatmap
+We can visualize the expression patterns by plotting a heatmap, with column annotations denoting cluster membership (red/black)
 ```{r,FSCseqHM,eval=T,echo=T,cache=F}
 processed.dat = FSCseq_results$processed.dat
 norm_y = processed.dat$norm_y
