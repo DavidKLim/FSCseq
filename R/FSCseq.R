@@ -1430,19 +1430,19 @@ EM_run <- function(ncores,X=NA, y, k,
 #' Performs prediction of cluster membership via trained model
 #'
 #' @param X (optional) design matrix of dimension n by p
-#' @param fit FSCseq object
-#' @param y_pred prediction/test count data matrix of dimension g by n_pred
-#' @param size_factors_pred vector of length n_pred, size factors for prediction subjects
+#' @param fit FSCseq results object
+#' @param cts_pred prediction/test count data matrix of dimension g by n_pred
+#' @param SF_pred vector of length n_pred, size factors for prediction subjects
 #'
 #' @return list containing outputs
 #' final_clusters: vector of length n of resulting clusters,
 #' wts: k by n matrix of E step weights
 #'
 #' @export
-FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
+FSCseq_predict <- function(X=NULL,fit,cts_pred,SF_pred){
   # fit: Output of EM
-  # y_pred: Data to perform prediction on
-  # size_factors_pred: SF's of new data
+  # cts_pred: Data to perform prediction on
+  # SF_pred: SF's of new data
   # offsets: Additional offsets per sample can be incorporated
   if(is.null(X)){
     cat("No covariates specified. Predicting on cluster-specific intercept-only model.\n")
@@ -1452,13 +1452,13 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   }
 
 
-  if(length(size_factors_pred) != ncol(y_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
+  if(length(SF_pred) != ncol(cts_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
 
   idx=fit$discriminatory
-  if(sum(idx)==0){warning('No disc genes. Using all genes');idx=rep(TRUE,nrow(y_pred))}
-  n=ncol(y_pred)
-  y_pred=matrix(y_pred[idx,],ncol=n)      # subset to just disc genes found by FSCseq run
-  # g=nrow(y_pred)
+  if(sum(idx)==0){warning('No disc genes. Using all genes');idx=rep(TRUE,nrow(cts_pred))}
+  n=ncol(cts_pred)
+  cts_pred=matrix(cts_pred[idx,],ncol=n)      # subset to just disc genes found by FSCseq run
+  # g=nrow(cts_pred)
   g=sum(idx)
   pi=fit$pi
   k=length(pi)
@@ -1470,7 +1470,6 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
     p=ncol(X)
     init_coefs=matrix(fit$coefs[idx,],nrow=sum(idx))
   } else{
-    cat("No covariates specified")
     p=0
     init_coefs=matrix(fit$coefs[idx,1:k],nrow=sum(idx))
   }
@@ -1488,7 +1487,7 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
 
   init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,],nrow=sum(idx))}
 
-  offsets=log2(size_factors_pred)
+  offsets=log2(SF_pred)
 
 
   # nb log(f_k(y_i))
@@ -1501,9 +1500,9 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   for(i in 1:n){
     for(c in 1:k){
       if(cl_phi){
-        l[c,i]<-sum(dnbinom(y_pred[,i],size=1/init_phi[,c],mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
+        l[c,i]<-sum(dnbinom(cts_pred[,i],size=1/init_phi[,c],mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
       } else if(!cl_phi){
-        l[c,i]<-sum(dnbinom(y_pred[,i],size=1/init_phi,mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+        l[c,i]<-sum(dnbinom(cts_pred[,i],size=1/init_phi,mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
       }
     }    # subtract out 0.1 that was added earlier
   }

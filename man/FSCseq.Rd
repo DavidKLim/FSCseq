@@ -8,9 +8,9 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
   size_factors, norm_y, true_clusters = NULL, true_disc = NULL,
   init_parms = FALSE, init_coefs = NULL, init_phi = NULL,
   init_cls = NULL, init_wts = NULL, n_rinits = if (method == "EM") { 
-     20 } else {     10 }, maxit_inits = if (method == "EM") {     15 }
-  else {     ceiling(log(2/nrow(y))/log(0.9)) }, maxit_EM = 100,
-  maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
+     20 } else if (method == "CEM") {     1 }, maxit_inits = if (method
+  == "EM") {     15 } else {     ceiling(log(2/nrow(y))/log(0.9)) },
+  maxit_EM = 100, maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
   IRLS_tol = 1e-04, CDA_tol = 1e-04, disp = "gene", method = "EM",
   init_temp = nrow(y), trace = F, trace.file = NULL,
   mb_size = NULL, PP_filt = 0.001)

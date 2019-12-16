@@ -62,11 +62,18 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
                         nsims=25, disp="gene", n_pred=25, save_dir=NULL,save_file=NULL){
 
   if(is.null(save_dir)){
-    dir_name=sprintf("Simulations/%f_%f/B%d",sigma_g,sigma_b,B)
-  }else{dir_name=save_dir}
+    dir_name1=sprintf("Simulations/%f_%f",sigma_g,sigma_b)
+    dir_name=sprintf("%s/B%d",dir_name1,B)
+    ifelse(!dir.exists(dir_name1),
+           dir.create(dir_name1),
+           FALSE)
+  }else{
+    dir_name=save_dir
+  }
   ifelse(!dir.exists(dir_name),
          dir.create(dir_name),
          FALSE)
+
 
   if(is.null(save_file)){
     file_name=sprintf("%d_%d_%f_%f_%f_%f",

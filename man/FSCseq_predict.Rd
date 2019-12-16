@@ -4,16 +4,16 @@
 \alias{FSCseq_predict}
 \title{Prediction via FSCseq}
 \usage{
-FSCseq_predict(X = NULL, fit, y_pred, size_factors_pred)
+FSCseq_predict(X = NULL, fit, cts_pred, SF_pred)
 }
 \arguments{
 \item{X}{(optional) design matrix of dimension n by p}
 
-\item{fit}{FSCseq object}
+\item{fit}{FSCseq results object}
 
-\item{y_pred}{prediction/test count data matrix of dimension g by n_pred}
+\item{cts_pred}{prediction/test count data matrix of dimension g by n_pred}
 
-\item{size_factors_pred}{vector of length n_pred, size factors for prediction subjects}
+\item{SF_pred}{vector of length n_pred, size factors for prediction subjects}
 }
 \value{
 list containing outputs

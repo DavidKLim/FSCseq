@@ -5,7 +5,7 @@
 #'
 #' @param X design matrix
 #' @export
-M_step <- function(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS) {
-    .Call(`_FSCseq_M_step`, X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS)
+M_step <- function(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA) {
+    .Call(`_FSCseq_M_step`, X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j, cl_phi, est_covar, lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA)
 }
 

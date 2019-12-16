@@ -5,9 +5,9 @@
 \title{Minimal workflow for FSCseq}
 \usage{
 FSCseq_workflow(cts, ncores = 1, batch = rep(1, ncol(cts)),
-  true_cls = NULL, true_disc = NULL, method = "EM", n_rinits = 20,
+  true_cls = NULL, true_disc = NULL, method = "CEM", n_rinits = 1,
   med_filt = 500, MAD_filt = 50, K_search = c(2:6),
-  lambda_search = seq(0.25, 3, 0.25), alpha_search = c(0.01, seq(0.05,
+  lambda_search = seq(0.25, 5, 0.25), alpha_search = c(0.01, seq(0.05,
   0.5, 0.05)), OS_save = TRUE, trace = F, trace.prefix = "",
   nMB = 5, dir_name = "Saved_Results")
 }
