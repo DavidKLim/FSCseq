@@ -3,8 +3,8 @@
 
 FSCseq is an R package for simultaneous feature selection and clustering
 of RNA-seq gene expression data. It can also correct for differences in
-sequencing depth using size factors from `DESeq2` [Love et
-al, 2014](https://doi.org/10.1186/s13059-014-0550-8), as well as for
+sequencing depth using size factors from `DESeq2` ([Love et
+al, 2014](https://doi.org/10.1186/s13059-014-0550-8)), as well as for
 covariates such as batch. The main application is in delineating tumor
 subtypes, but `FSCseq` can be used for other applications involving
 discovery of subpopulations and identification of significant features.
