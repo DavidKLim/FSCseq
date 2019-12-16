@@ -105,16 +105,11 @@ cts = sim.dat$cts; true_cls=sim.dat$cls
 
 t0 = as.numeric(Sys.time())
 FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(0.25,0.50),alpha_search=c(0.3,0.4),dir_name="~/test/Saved_Results")
-```
-
-    ## converting counts to integer mode
-
-``` r
+#> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
+#> [1] "time elapsed: 48.3579678535461"
 ```
-
-    ## [1] "time elapsed: 339.849399089813"
 
 ### Step 3: Summarizing and visualizing results
 
@@ -129,31 +124,18 @@ res = FSCseq_results$results
 processed.dat = FSCseq_results$processed.dat
 idx = processed.dat$idx
 library(mclust)
-```
-
-    ## Package 'mclust' version 5.4.5
-    ## Type 'citation("mclust")' for citing this R package in publications.
-
-``` r
+#> Package 'mclust' version 5.4.5
+#> Type 'citation("mclust")' for citing this R package in publications.
 print(paste("True K:",K,"Optimal K:",length(unique(res$cls))))
-```
-
-    ## [1] "True K: 2 Optimal K: 2"
-
-``` r
+#> [1] "True K: 2 Optimal K: 2"
 print(paste("ARI:",adjustedRandIndex(true_cls,res$cls)))
-```
-
-    ## [1] "ARI: 1"
-
-``` r
+#> [1] "ARI: 1"
 table(true_cls,res$cls)
+#>         
+#> true_cls  1  2
+#>        1 23  0
+#>        2  0 27
 ```
-
-    ##         
-    ## true_cls  1  2
-    ##        1 23  0
-    ##        2  0 27
 
 We can also show the true positive rate (TPR) and false positive rate
 (FPR) of feature selection in discovering cluster-discriminatory genes:
@@ -163,15 +145,10 @@ true_disc = sim.dat$DEg_ID[idx];
 FSC_disc = res$discriminatory
 
 print(paste("TPR: ",sum(true_disc & FSC_disc)/sum(true_disc)))
-```
-
-    ## [1] "TPR:  0.64070351758794"
-
-``` r
+#> [1] "TPR:  0.64070351758794"
 print(paste("FPR: ",sum(!true_disc & FSC_disc)/sum(!true_disc)))
+#> [1] "FPR:  0.000869187309865276"
 ```
-
-    ## [1] "FPR:  0.000869187309865276"
 
 To plot a heatmap
 
@@ -181,7 +158,7 @@ norm_y = processed.dat$norm_y
 heatmap(log(norm_y[sim.dat$DEg_ID,]+0.1),scale="row",ColSideColors = as.character(res$cls),xlab="Samples",ylab="Genes",main="Heatmap of cluster-discriminatory genes")
 ```
 
-![](README_files/figure-gfm/FSCseqHM-1.png)<!-- -->
+<img src="man/figures/README-FSCseqHM-1.png" width="100%" />
 
 ### Step 4 (optional): Predicting on new data
 
@@ -198,16 +175,14 @@ analyses.
 cts_pred = sim.dat$cts_pred
 true_cls_pred = sim.dat$cls_pred
 fit_pred = FSCseq::FSCseq_predict_workflow(fit=res$fit,cts=cts,cts_pred=cts_pred,idx=idx)
+#> converting counts to integer mode
 ```
-
-    ## converting counts to integer mode
 
 ``` r
 res_pred = fit_pred$results
 print(paste("pARI: ",adjustedRandIndex(true_cls_pred,res_pred$clusters)))
+#> [1] "pARI:  1"
 ```
-
-    ## [1] "pARI:  1"
 
 This anaysis can be easily generalized to real data by replacing
 `cts_pred` with a separate test dataset, after fitting the FSCseq model
