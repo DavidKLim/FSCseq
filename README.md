@@ -108,7 +108,7 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 48.3579678535461"
+#> [1] "time elapsed: 337.421540975571"
 ```
 
 ### Step 3: Summarizing and visualizing results
@@ -150,7 +150,8 @@ print(paste("FPR: ",sum(!true_disc & FSC_disc)/sum(!true_disc)))
 #> [1] "FPR:  0.000869187309865276"
 ```
 
-To plot a heatmap
+We can visualize the expression patterns by plotting a heatmap, with
+column annotations denoting cluster membership (red/black)
 
 ``` r
 processed.dat = FSCseq_results$processed.dat
