@@ -5,7 +5,8 @@
 \title{Perform M step of EM algorithm}
 \usage{
 M_step(X, y_j, p, j, a, k, all_wts, keep, offset, theta, coefs_j, phi_j,
-  cl_phi, est_covar, lambda, alpha, IRLS_tol, maxit_IRLS)
+  cl_phi, est_covar, lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS,
+  maxit_CDA)
 }
 \arguments{
 \item{X}{design matrix}

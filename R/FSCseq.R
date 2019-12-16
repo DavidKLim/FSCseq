@@ -355,7 +355,9 @@ M_step_par = function(j){
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_covar=est_covar[j],
-               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
+               lambda=lambda,alpha=alpha,
+               IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
+               CDA_tol=CDA_tol,maxit_CDA=maxit_CDA)
 
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
@@ -384,7 +386,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
                        wts, keep, offsets,
                        theta_list, coefs, phi,
                        cl_phi, est_phi, est_covar,
-                       lambda, alpha, IRLS_tol, maxit_IRLS,
+                       lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA,
                        Tau, disc_ids_list, par_X){
   if(Tau<=1 & a>6){
     if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
@@ -395,7 +397,9 @@ M_step_par2 = function(j, XX, y, p, a, k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                cl_phi=cl_phi,est_covar=est_covar[j],
-               lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
+               lambda=lambda,alpha=alpha,
+               IRLS_tol=IRLS_tol,CDA_tol=CDA_tol,
+               maxit_IRLS=maxit_IRLS,maxit_CDA=maxit_CDA)
 
   if(est_phi[j]==1){
     ids = (c(t(keep))==1)
@@ -436,8 +440,10 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param maxit_inits integer, maximum number of iterations for each initialization search (default 15 for EM, or until temperature anneals down to below 2 for CEM)
 #' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS algorithm, in M step (default 50)
-#' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-8
-#' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-6
+#' @param maxit_CDA integer, maximum number of iterations for CDA loop (default 50)
+#' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-6
+#' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-4
+#' @param CDA_tol numeric, tolerance of convergence for IRLS, default is 1E-4
 #' @param method string, either "EM" (default) or "CEM"
 #' @param init_temp numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
@@ -452,10 +458,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  size_factors,norm_y,
                  true_clusters=NULL, true_disc=NULL,
                  init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,init_wts=NULL,
-                 n_rinits=if(method=="EM"){20}else{10},         # fewer searches for CEM to minimize computational cost
+                 n_rinits=if(method=="EM"){20}else if(method=="CEM"){1},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
-                 maxit_EM=100,maxit_IRLS=50,EM_tol=1E-6,IRLS_tol=1E-4,
-                 # disp="gene",
+                 maxit_EM=100,maxit_IRLS=50,maxit_CDA=50,EM_tol=1E-6,IRLS_tol=1E-4,CDA_tol=1E-4,
+                 disp="gene", # disp is commented out. just left for simulations
                  method="EM",init_temp=nrow(y),
                  trace=F,trace.file=NULL,
                  mb_size=NULL,PP_filt=1e-3){
@@ -506,8 +512,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   if(length(size_factors) != n){stop("size_factors must be of length n")}
   if(any(size_factors <= 0)){stop("size_factors must be > 0")}
   if(any(y < 0) | any(norm_y < 0)){stop("y and norm_y must all be >= 0")}
-  if(ncores%%1!=0 | k%%1!=0 | n_rinits%%1!=0 | maxit_inits%%1!=0 | maxit_EM%%1!=0 | maxit_IRLS%%1!=0){stop('ncores, k, n_rinits, maxit_inits, maxit_EM, and maxit_IRLS must all be positive integers')}
-  if(EM_tol<0 | IRLS_tol<0 | EM_tol>1 | IRLS_tol>1){stop('EM_tol and IRLS_tol must be between 0 and 1')}
+  if(ncores%%1!=0 | k%%1!=0 | n_rinits%%1!=0 | maxit_inits%%1!=0 | maxit_EM%%1!=0 | maxit_IRLS%%1!=0 | maxit_CDA%%1!=0){stop('ncores, k, n_rinits, maxit_inits, maxit_EM, maxit_IRLS, maxit_CDA must all be positive integers')}
+  if(EM_tol<0 | IRLS_tol<0 | CDA_tol<0 | EM_tol>1 | IRLS_tol>1 | CDA_tol>1){stop('EM_tol, IRLS_tol, and CDA_tol must be between 0 and 1')}
   if(PP_filt<0 | PP_filt>=1){stop('PP_filt must be 0 <= PP_filt < 1')}
   if(!is.null(mb_size)){if(mb_size>g | mb_size<=0){stop('mb_size must be 0 < mb_size <= g')}}
   if(init_parms){if(is.null(init_coefs) | is.null(init_phi)){stop("init_coefs (gxk matrix) and init_phi (vector of length g) must be input if init_parms=TRUE")}}
@@ -640,9 +646,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       # init clusters weren't specified, init_coefs/phi were not either
       fit = EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                    init_parms=F,disp=disp,
-                   init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,maxit_EM=maxit_inits,
-                   maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,
-                   mb_size=mb_size,PP_filt=PP_filt)
+                   init_cls=all_init_cls[,i], CEM=CEM,init_Tau=init_Tau,
+                   maxit_EM=maxit_inits,maxit_IRLS=maxit_IRLS,maxit_CDA=maxit_CDA,
+                   EM_tol=EM_tol,IRLS_tol=IRLS_tol,CDA_tol=CDA_tol,
+                   trace=trace,mb_size=mb_size,PP_filt=PP_filt)
 
       all_fits [[i]] = fit
       init_cls_BIC[i] <- fit$BIC
@@ -734,8 +741,9 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
-                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,EM_tol=EM_tol,IRLS_tol=IRLS_tol,trace=trace,
-                 mb_size=mb_size,PP_filt=PP_filt)
+                 maxit_EM=maxit_EM,maxit_IRLS=maxit_IRLS,maxit_CDA=maxit_CDA,
+                 EM_tol=EM_tol,IRLS_tol=IRLS_tol,CDA_tol=CDA_tol,
+                 trace=trace,mb_size=mb_size,PP_filt=PP_filt)
 
   end_FSC = as.numeric(Sys.time())
   results$total_time_elap = end_FSC-start_FSC
@@ -770,9 +778,11 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param CEM logical, TRUE for EM (default), FALSE for CEM
 #' @param init_Tau numeric, initial temperature for CEM. Default is 1 for EM and g for CEM
 #' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
-#' @param maxit_IRLS integer, maximum number of iterations for IRLS algorithm, in M step (default 50)
-#' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-8
-#' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-6
+#' @param maxit_IRLS integer, maximum number of iterations for IRLS loop, in M step (default 50)
+#' @param maxit_CDA integer, maximum number of iterations for CDA loop (default is 50)
+#' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-6
+#' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-4
+#' @param CDA_tol numeric, tolerance of convergence for CDA, default is 1E-4
 #' @param disp string, either "gene" (default) or "cluster"
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #'
@@ -812,7 +822,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
                    CEM=F,init_Tau=1,
-                   maxit_EM=100, maxit_IRLS = 50,EM_tol = 1E-6,IRLS_tol = 1E-4,disp,trace=F,
+                   maxit_EM=100, maxit_IRLS = 50,maxit_CDA=50,EM_tol = 1E-6,IRLS_tol = 1E-4,CDA_tol=1E-4,disp,trace=F,
                    mb_size=NULL,PP_filt){
 
   start_time <- Sys.time()
@@ -919,6 +929,8 @@ EM_run <- function(ncores,X=NA, y, k,
   cl_agreement = rep(NA,maxit_EM)
   par_X=rep(list(list()),g)         # store M_step results
 
+  nits_IRLS=rep(0,g)
+  nits_CDA=rep(0,g)
 
   ########### M / E STEPS #########
   for(a in 1:maxit_EM){
@@ -997,6 +1009,19 @@ EM_run <- function(ncores,X=NA, y, k,
       }
     }
 
+    # update on pi_hat, and UB & LB on pi
+    for(c in 1:k){
+      pi[c]=mean(wts[c,])
+      if(pi[c]<1E-6){
+        if(trace){warning(paste("cluster proportion", c, "close to 0"))}
+        pi[c]=1E-6
+      } # lowerbound for pi
+      if(pi[c]>(1-1E-6)){
+        if(trace){warning(paste("cluster proportion", c, "close to 1"))}
+        pi[c]=(1-1E-6)
+      } # upperbound for pi
+    }
+
     # M step
     Mstart=as.numeric(Sys.time())
 
@@ -1017,7 +1042,7 @@ EM_run <- function(ncores,X=NA, y, k,
         clusterEvalQ(cl=clust,library(FSCseq))
         clusterExport(cl=clust,varlist=c("XX","y","p","a","k","wts","keep","offsets",
                                          "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
-                                         "lambda","alpha","IRLS_tol","maxit_IRLS",
+                                         "lambda","alpha","IRLS_tol","CDA_tol","maxit_IRLS","maxit_CDA",
                                          "disc_ids_list","Tau","par_X"),envir=environment())
         par_X_mb = parallel::parLapply(clust, mb_genes, M_step_par)
         stopCluster(clust)
@@ -1028,7 +1053,7 @@ EM_run <- function(ncores,X=NA, y, k,
                       wts, keep, offsets,
                       theta_list, coefs, phi,
                       cl_phi, est_phi, est_covar,
-                      lambda, alpha, IRLS_tol, maxit_IRLS,
+                      lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA,
                       Tau, disc_ids_list, par_X)
         })
       }
@@ -1041,7 +1066,9 @@ EM_run <- function(ncores,X=NA, y, k,
                              all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                              theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
                              cl_phi=cl_phi,est_covar=est_covar[j],
-                             lambda=lambda,alpha=alpha,IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS)
+                             lambda=lambda,alpha=alpha,
+                             IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
+                             CDA_tol=CDA_tol,maxit_CDA=maxit_CDA)
         if(est_phi[j]==1){
           ids = (c(t(keep))==1)
           mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
@@ -1057,7 +1084,6 @@ EM_run <- function(ncores,X=NA, y, k,
     }
     Mend=as.numeric(Sys.time())
     if(trace){cat(paste("M Step Time Elapsed:",Mend-Mstart,"seconds.\n"))}
-
 
     for(j in mb_genes){
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
@@ -1081,6 +1107,8 @@ EM_run <- function(ncores,X=NA, y, k,
         phi_g[j] <- (par_X[[j]]$phi_j)[1]
         phi[j,] = rep(phi_g[j],k)
       }
+      nits_IRLS[j]=par_X[[j]]$nits_IRLS
+      nits_CDA[j]=par_X[[j]]$nits_CDA
 
       # calculate LFCs (should just be 0 if k=1)
       LFCs[j,a] = max(coefs[j,1:k])-min(coefs[j,1:k])
@@ -1105,6 +1133,11 @@ EM_run <- function(ncores,X=NA, y, k,
       cat(paste("Avg % diff in phi est (across 5 its) = ",mean(diff_phi[a,]),"\n"))
     }
 
+
+    if(trace){cat(paste("Average # IRLS iterations:",mean(nits_IRLS[mb_genes]),"\n"))}
+    if(trace){cat(paste("Average # CDA iterations:",mean(nits_CDA[mb_genes]),"\n"))}
+
+
     # all_temp_list[[a]] = temp_list
     # all_theta_list[[a]] = theta_list
 
@@ -1127,19 +1160,6 @@ EM_run <- function(ncores,X=NA, y, k,
     }
 
     prev_coefs = coefs    # store prev coefs for comparison in MSE_coefs next iteration
-
-    # update on pi_hat, and UB & LB on pi
-    for(c in 1:k){
-      pi[c]=mean(wts[c,])
-      if(pi[c]<1E-6){
-        if(trace){warning(paste("cluster proportion", c, "close to 0"))}
-        pi[c]=1E-6
-      } # lowerbound for pi
-      if(pi[c]>(1-1E-6)){
-        if(trace){warning(paste("cluster proportion", c, "close to 1"))}
-        pi[c]=(1-1E-6)
-      } # upperbound for pi
-    }
 
     # nb log(f_k(y_i))
     l<-matrix(rep(0,times=k*n),nrow=k)
@@ -1435,6 +1455,7 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   if(length(size_factors_pred) != ncol(y_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
 
   idx=fit$discriminatory
+  if(sum(idx)==0){warning('No disc genes. Using all genes');idx=rep(TRUE,nrow(y_pred))}
   n=ncol(y_pred)
   y_pred=matrix(y_pred[idx,],ncol=n)      # subset to just disc genes found by FSCseq run
   # g=nrow(y_pred)
@@ -1447,11 +1468,11 @@ FSCseq_predict <- function(X=NULL,fit,y_pred,size_factors_pred){
   covars = !is.null(X)
   if(covars){
     p=ncol(X)
-    init_coefs=fit$coefs[idx,]
+    init_coefs=matrix(fit$coefs[idx,],nrow=sum(idx))
   } else{
     cat("No covariates specified")
     p=0
-    init_coefs=fit$coefs[idx,1:k]
+    init_coefs=matrix(fit$coefs[idx,1:k],nrow=sum(idx))
   }
 
   # fit is the output object from the EM() function

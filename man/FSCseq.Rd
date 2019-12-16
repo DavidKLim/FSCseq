@@ -10,7 +10,8 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
   init_cls = NULL, init_wts = NULL, n_rinits = if (method == "EM") { 
      20 } else {     10 }, maxit_inits = if (method == "EM") {     15 }
   else {     ceiling(log(2/nrow(y))/log(0.9)) }, maxit_EM = 100,
-  maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04, method = "EM",
+  maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
+  IRLS_tol = 1e-04, CDA_tol = 1e-04, disp = "gene", method = "EM",
   init_temp = nrow(y), trace = F, trace.file = NULL,
   mb_size = NULL, PP_filt = 0.001)
 }
@@ -51,9 +52,13 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{maxit_IRLS}{integer, maximum number of iterations for IRLS algorithm, in M step (default 50)}
 
-\item{EM_tol}{numeric, tolerance of convergence for EM/CEM, default is 1E-8}
+\item{maxit_CDA}{integer, maximum number of iterations for CDA loop (default 50)}
 
-\item{IRLS_tol}{numeric, tolerance of convergence for IRLS, default is 1E-6}
+\item{EM_tol}{numeric, tolerance of convergence for EM/CEM, default is 1E-6}
+
+\item{IRLS_tol}{numeric, tolerance of convergence for IRLS, default is 1E-4}
+
+\item{CDA_tol}{numeric, tolerance of convergence for IRLS, default is 1E-4}
 
 \item{method}{string, either "EM" (default) or "CEM"}
 

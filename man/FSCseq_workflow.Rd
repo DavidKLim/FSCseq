@@ -8,8 +8,8 @@ FSCseq_workflow(cts, ncores = 1, batch = rep(1, ncol(cts)),
   true_cls = NULL, true_disc = NULL, method = "EM", n_rinits = 20,
   med_filt = 500, MAD_filt = 50, K_search = c(2:6),
   lambda_search = seq(0.25, 3, 0.25), alpha_search = c(0.01, seq(0.05,
-  0.5, 0.05)), OS_save = TRUE, trace = F, trace.file = NULL,
-  nMB = 5)
+  0.5, 0.05)), OS_save = TRUE, trace = F, trace.prefix = "",
+  nMB = 5, dir_name = "Saved_Results")
 }
 \arguments{
 \item{cts}{integer matrix, count matrix of dimension g by n. Must be integers (counts)}
@@ -40,9 +40,9 @@ FSCseq_workflow(cts, ncores = 1, batch = rep(1, ncol(cts)),
 
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
-\item{trace.file}{(optional) string, file name to store trace output. For example: 'test.txt'}
-
 \item{nMB}{integer, number of minibatches to use in M step. Default is 5}
+
+\item{trace.file}{(optional) string, file name to store trace output. For example: 'test.txt'}
 }
 \value{
 list with K, cls, discriminatory, and fit

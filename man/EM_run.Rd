@@ -10,8 +10,9 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
   init_coefs = matrix(0, nrow = nrow(y), ncol = k),
   init_phi = matrix(0, nrow = nrow(y), ncol = k), init_cls = NULL,
   init_wts = NULL, CEM = F, init_Tau = 1, maxit_EM = 100,
-  maxit_IRLS = 50, EM_tol = 1e-06, IRLS_tol = 1e-04, disp,
-  trace = F, mb_size = NULL, PP_filt)
+  maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
+  IRLS_tol = 1e-04, CDA_tol = 1e-04, disp, trace = F,
+  mb_size = NULL, PP_filt)
 }
 \arguments{
 \item{X}{design matrix of dimension n by p}
@@ -48,11 +49,15 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
 
 \item{maxit_EM}{integer, maximum number of iterations for full EM/CEM run (default 100)}
 
-\item{maxit_IRLS}{integer, maximum number of iterations for IRLS algorithm, in M step (default 50)}
+\item{maxit_IRLS}{integer, maximum number of iterations for IRLS loop, in M step (default 50)}
 
-\item{EM_tol}{numeric, tolerance of convergence for EM/CEM, default is 1E-8}
+\item{maxit_CDA}{integer, maximum number of iterations for CDA loop (default is 50)}
 
-\item{IRLS_tol}{numeric, tolerance of convergence for IRLS, default is 1E-6}
+\item{EM_tol}{numeric, tolerance of convergence for EM/CEM, default is 1E-6}
+
+\item{IRLS_tol}{numeric, tolerance of convergence for IRLS, default is 1E-4}
+
+\item{CDA_tol}{numeric, tolerance of convergence for CDA, default is 1E-4}
 
 \item{disp}{string, either "gene" (default) or "cluster"}
 
