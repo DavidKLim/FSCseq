@@ -60,6 +60,7 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
                         LFCb=1, pDEb=0.5, sigma_b=0,
                         beta0, phi0, SF=NULL,
                         nsims=25, disp="gene", n_pred=25, save_dir=NULL,save_file=NULL){
+  if(B=1){LFCb=0}
 
   if(is.null(save_dir)){
     dir_name1=sprintf("Simulations/%f_%f",sigma_g,sigma_b)
