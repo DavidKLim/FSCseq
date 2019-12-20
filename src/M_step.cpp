@@ -60,6 +60,24 @@ double lasso_soft_thresh(double alpha, double lambda){
 	return(STval);
 }
 
+arma::mat compute_theta(arma::vec beta, double lambda, double alpha, int k){
+	arma::mat theta(k,k);
+	theta.zeros();
+	for(int c=0; c<k; c++){
+		for(int r=0; r<k; r++){
+			if(r==c){
+				theta(r,c) = 0;
+			}else if(r>c){
+				// only calculate for lower triangular part of matrix
+				theta(r,c) = SCAD_soft_thresh(beta(r)-beta(c),lambda,alpha);
+			}else{
+				theta(r,c) = (-1)*theta(c,r);
+			}
+		}
+	}
+	return(theta);
+}
+
 /*Rcpp::List score_info(int N, double ph, arma::vec mu, arma::vec y, arma::vec wts){
     double lambda = 1e-25;
     double score1 = 0, info1 = 0;
@@ -270,12 +288,8 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		}
 
 		/* Initialize theta matrix for CDA */
-		for(int c=0; c<k; c++){
-			for(int cc=0; cc<k; cc++){
-				theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
-				/*theta(c,cc) = lasso_soft_thresh(beta(c)-beta(cc),lambda*alpha);*/
-			}
-		}
+		theta = compute_theta(beta, lambda, alpha, k);
+		
 		if(i==TIME_ITER){
 			timer.step("est cl baselines start");
 		}
@@ -289,12 +303,14 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		while(CDA_conv == 0){
 			
 			/* Update/initialize theta matrix */
-			for(int c=0; c<k; c++){
-				for(int cc=0; cc<k; cc++){
-					theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
-					/*theta(c,cc) = lasso_soft_thresh(beta(c)-beta(cc),lambda*alpha);*/
-				}
-			}
+			//for(int c=0; c<k; c++){
+			//	for(int cc=0; cc<k; cc++){
+			//		theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
+			//		/*theta(c,cc) = lasso_soft_thresh(beta(c)-beta(cc),lambda*alpha);*/
+			//	}
+			//}
+			
+			theta = compute_theta(beta, lambda, alpha, k);
 			
 			/* Update betas (cluster coefs) */
 			for(int c=0; c<k; c++){
@@ -466,12 +482,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		}
 		if(CDA_conv == 1){
 			/* Update theta matrix one more time */
-			for(int c=0; c<k; c++){
-				for(int cc=0; cc<k; cc++){
-					theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
-					/*theta(c,cc) = lasso_soft_thresh(beta(c)-beta(cc),lambda*alpha);*/
-				}
-			}
+			theta = compute_theta(beta, lambda, alpha, k);
 		}
 		CDA_index += 1;
 	}

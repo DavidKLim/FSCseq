@@ -987,7 +987,12 @@ EM_run <- function(ncores,X=NA, y, k,
         for(c in 1:k){
           pi[c]=mean(wts[c,])
           for(cc in 1:k){
-            theta[c,cc]<-SCAD_soft_thresholding(coefs[j,c]-coefs[j,cc],lambda,alpha)
+            # run just once in R, for initialization
+            if(cc==c){
+              theta[cc,c]=0
+            }else if(cc>c){
+              theta[cc,c]<-SCAD_soft_thresholding(coefs[j,cc]-coefs[j,c],lambda,alpha)
+            }else{theta[cc,c]=-theta[c,cc]}
           }
         }
         theta_list[[j]] <- theta

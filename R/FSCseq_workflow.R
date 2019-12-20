@@ -4,7 +4,7 @@
 #'
 #' @param cts integer matrix, count matrix of dimension g by n. Must be integers (counts)
 #' @param ncores integer, number of cores (for parallel computing). Default is 1
-#' @param batch vector of batch, to use as covariates. Default is no batches.
+#' @param batch vector of batch, to use as covariates. Default is one batch (NULL).
 #' @param true_cls (optional) integer vector of true groups, if available, for diagnostic tracking.
 #' @param true_disc (optional) logical vector of true discriminatory genes, if available, for diagnostic tracking.
 #' @param method string, either "EM" or "CEM". Default is "EM"
@@ -22,7 +22,7 @@
 #' @return list with K, cls, discriminatory, and fit
 #'
 #' @export
-FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,true_disc=NULL,
+FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
                            method="CEM",n_rinits=1,med_filt=500,MAD_filt=50,
                            K_search=c(2:6),lambda_search=seq(0.25,5,0.25),alpha_search=c(0.01,seq(0.05,0.5,0.05)),
                            OS_save=TRUE,trace=F,trace.prefix="",nMB=5,dir_name="Saved_Results"){
@@ -37,6 +37,7 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
 
   if(!trace){trace.file=NULL}
 
+  if(is.null(batch)){warning("No input batch. Assuming all samples from same batch");batch=rep(1,ncol(cts))}
   if(length(unique(batch))==1){
     X=NULL
   } else{
@@ -51,6 +52,8 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
   norm_y=processed.cts$norm_y
   SF=processed.cts$size_factors
   idx=processed.cts$idx
+  processed.dat=processed.cts[-1] # remove dds object (large)
+  rm("processed.cts")
 
   # warm starts for each value of K
   list_res=list()
@@ -119,7 +122,8 @@ FSCseq_workflow = function(cts,ncores=1,batch=rep(1,ncol(cts)),true_cls=NULL,tru
             discriminatory=discriminatory,
             fit=optim_res)
 
-  return(list(processed.dat=processed.cts,results=results))
+  # don't save dds object (too large)
+  return(list(processed.dat=processed.dat,results=results))
 
 }
 

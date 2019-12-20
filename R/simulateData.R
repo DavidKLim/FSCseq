@@ -64,7 +64,7 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
 
   if(is.null(save_dir)){
     dir_name1=sprintf("Simulations/%f_%f",sigma_g,sigma_b)
-    dir_name=sprintf("%s/B%d",dir_name1,B)
+    dir_name=sprintf("%s/B%d_LFCb%d",dir_name1,B,LFCb)
     ifelse(!dir.exists(dir_name1),
            dir.create(dir_name1),
            FALSE)
@@ -117,6 +117,11 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
   beta=matrix(beta0,nrow=g,ncol=K)
 
   for(i in 1:nsims){
+
+    # order params in file name: K, n, LFCg, pDEg, beta, phi (use universally)
+    file.name=sprintf("%s/%s_sim%d_data.RData",
+                      dir_name,file_name,i)
+    if(file.exists(file.name)){next}else{print(file.name)}
 
     if(is.null(SF)){
       SF=rnorm(n,1,0.25)
@@ -172,9 +177,6 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
                  SF=SF, SF_pred=SF_pred,
                  DEg_ID=DEg_ID, sim_params=sim_params)
 
-    # order params in file name: K, n, LFCg, pDEg, beta, phi (use universally)
-    file.name=sprintf("%s/%s_sim%d_data.RData",
-            dir_name,file_name,i)
     save(sim.dat,file=file.name)
   }
 
@@ -190,14 +192,6 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
   write.table(pK,quote=F,col.names=F)
   cat("\npB:\n")
   write.table(pB,quote=F,col.names=F)
-  cat("\nlast sim SF:\n")
-  write.table(SF,quote=F,col.names=F)
-  cat("\nlast sim cls:\n")
-  write.table(cls,quote=F,col.names=F)
-  cat("\nlast sim SF_pred:\n")
-  write.table(SF_pred,quote=F,col.names=F)
-  cat("\nlast sim cls_pred:\n")
-  write.table(cls_pred,quote=F,col.names=F)
 
   sink()
 }

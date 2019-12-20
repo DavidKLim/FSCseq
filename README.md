@@ -9,7 +9,7 @@ covariates such as batch. The main application is in delineating tumor
 subtypes, but `FSCseq` can be used for other applications involving
 discovery of subpopulations and identification of significant features.
 Code to replicate the results from the FSCseq paper is available at
-<https://github.com/limddavid/FSCseqPaper>.
+<https://github.com/DavidKLim/FSCseqPaper>.
 
 ## Installation
 
@@ -17,7 +17,7 @@ You can install the released version of FSCseq from this repository
 with:
 
 ``` r
-devtools::install_github("limddavid/FSCseq")
+devtools::install_github("DavidKLim/FSCseq")
 ```
 
 ## Example
@@ -88,7 +88,7 @@ Optionally, you may want to pre-filter out genes with low FPKM values.
 Then, you can proceed with the subsequent steps with the `cts`, matrix
 as in the simulated data. Details of the processing steps and analyses
 on the TCGA BRCA dataset can be found
-[here](https://github.com/limddavid/FSCseqPaper). In the subsequent
+[here](https://github.com/DavidKLim/FSCseqPaper). In the subsequent
 steps, we walk through just the simulated data.
 
 ### Step 2: Performing clustering and feature selection
@@ -105,10 +105,13 @@ cts = sim.dat$cts; true_cls=sim.dat$cls
 
 t0 = as.numeric(Sys.time())
 FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(0.25,0.50),alpha_search=c(0.3,0.4),dir_name="~/test/Saved_Results")
+#> Warning in FSCseq::FSCseq_workflow(cts = cts, K_search = c(2:3),
+#> lambda_search = c(0.25, : No input batch. Assuming all samples from same
+#> batch
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 337.421540975571"
+#> [1] "time elapsed: 319.707175970078"
 ```
 
 ### Step 3: Summarizing and visualizing results
