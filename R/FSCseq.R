@@ -459,7 +459,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  true_clusters=NULL, true_disc=NULL,
                  init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,init_wts=NULL,
                  n_rinits=if(method=="EM"){20}else if(method=="CEM"){1},         # fewer searches for CEM to minimize computational cost
-                 maxit_inits=if(method=="EM"){15}else{ceiling(log(2/nrow(y))/log(0.9))}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
+                 maxit_inits=if(method=="EM"){15}else if(method=="CEM"){100}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,maxit_CDA=50,EM_tol=1E-6,IRLS_tol=1E-4,CDA_tol=1E-4,
                  disp="gene", # disp is commented out. just left for simulations
                  method="EM",init_temp=nrow(y),
