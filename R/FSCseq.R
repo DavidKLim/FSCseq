@@ -873,7 +873,13 @@ EM_run <- function(ncores,X=NA, y, k,
 
   Q<-rep(0,times=maxit_EM)
 
-  if(!is.null(init_cls)){
+  # if both init_wts and init_cls are specified, will default to init_wts for current clustering
+  if(!is.null(init_wts)){
+    wts=init_wts
+
+    cls=apply(wts,2,which.max)
+    current_clusters=cls
+  } else if(!is.null(init_cls)){
     cls=init_cls
     current_clusters<-cls
 
@@ -882,11 +888,6 @@ EM_run <- function(ncores,X=NA, y, k,
     for(c in 1:k){
       wts[c,]=(cls==c)^2
     }
-  } else if(!is.null(init_wts)){
-    wts=init_wts
-
-    cls=apply(wts,2,which.max)
-    current_clusters=cls
   }
 
   # For use in CEM in E step #

@@ -69,7 +69,7 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
                                      lambda=0.05,alpha=0.01,
                                      size_factors=SF,norm_y=norm_y[idx,],
                                      true_clusters=true_cls, true_disc=true_disc[idx],
-                                     init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,
+                                     init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,init_wts=NULL,
                                      n_rinits=n_rinits,method=method,
                                      trace=trace,trace.file=trace.file,
                                      mb_size=mb_size)
@@ -92,15 +92,15 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
     if(trace){trace.file=sprintf("%s/Diagnostics/JOINT%d_%f_%f.txt",dir_name,K_search[c],lambda_search[l],alpha_search[a])}
 
     if(l==1){
-      init_coefs=list_res[[c]]$coefs; init_phi=list_res[[c]]$phi; init_cls=list_res[[c]]$clusters
+      init_coefs=list_res[[c]]$coefs; init_phi=list_res[[c]]$phi; init_cls=list_res[[c]]$clusters; init_wts=list_res[[c]]$wts
     } else if(l>1){
-      init_coefs=list_res_tune[[index-1]]$coefs; init_phi=list_res_tune[[index-1]]$phi; init_cls=list_res_tune[[index-1]]$clusters
+      init_coefs=list_res_tune[[index-1]]$coefs; init_phi=list_res_tune[[index-1]]$phi; init_cls=list_res_tune[[index-1]]$clusters; init_wts=list_res_tune[[index-1]]$wts
     }
     res = FSCseq::FSCseq(ncores=ncores,X=X, y=cts[idx,], k=K_search[c],
                          lambda=lambda_search[l],alpha=alpha_search[a],
                          size_factors=SF,norm_y=norm_y[idx,],
                          true_clusters=true_cls, true_disc=true_disc[idx],
-                         init_parms=TRUE,init_coefs=init_coefs,init_phi=init_phi,init_cls=init_cls,
+                         init_parms=TRUE,init_coefs=init_coefs,init_phi=init_phi,init_cls=init_cls,init_wts=init_wts,
                          trace=trace,trace.file=trace.file,
                          mb_size=sum(idx))   # minibatching disabled after warm start
 
