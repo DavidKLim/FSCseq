@@ -163,11 +163,11 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     for(c in 1:k){
       wts[c,]<-exp((1/Tau)*(log(pi[c])+l[c,])-logdenom)
     }
-    if(Tau>1){
+    #if(Tau>1){
       Tau = 0.9*Tau
-    } #else{
-      #Tau=1       # after Tau hits 1 --> fix at 1
-      #CEM=F       # after Tau is fixed at 1 --> no more stochastic sampling
+    #} else{
+    #  Tau=1       # after Tau hits 1 --> fix at 1
+    #  CEM=F       # after Tau is fixed at 1 --> no more stochastic sampling
     #}
   }
 
