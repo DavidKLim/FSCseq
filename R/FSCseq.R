@@ -188,7 +188,6 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     # C step
     draw_wts=wts                 # initialize
     for(i in 1:n){
-      set.seed(i)
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
     # seed_mult=1
