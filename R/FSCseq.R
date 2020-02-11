@@ -158,17 +158,17 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
       wts[c,]<-exp(log(pi[c])+l[c,]-logdenom)
     }
   } else if(CEM){
-    # CEM update on weights
+    # CEM AE-step update on weights
     logdenom = apply((1/Tau)*(log(pi)+l),2,logsumexpc)
     for(c in 1:k){
       wts[c,]<-exp((1/Tau)*(log(pi[c])+l[c,])-logdenom)
     }
     if(Tau>1){
       Tau = 0.9*Tau
-    } else{
-      Tau=1       # after Tau hits 1 --> fix at 1
-      CEM=F       # after Tau is fixed at 1 --> no more stochastic sampling
-    }
+    } #else{
+      #Tau=1       # after Tau hits 1 --> fix at 1
+      #CEM=F       # after Tau is fixed at 1 --> no more stochastic sampling
+    #}
   }
 
   # UB and LB on weights
@@ -185,32 +185,32 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
   }
 
   if(CEM){
-    # CEM
+    # C step
     draw_wts=wts                 # initialize
     for(i in 1:n){
       set.seed(i)
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
-    seed_mult=1
-    while(any(rowSums(draw_wts)==0)){
-      #if(trace){cat("Drawing again",seed_mult,"\n")}
-      for(i in 1:n){
-        set.seed(seed_mult*n+i)
-        for(c in 1:k){
-          if(wts[c,i]<=(1E-50*10^seed_mult) & seed_mult<=48){
-            wts[c,i]=1E-50*10^seed_mult
-          } else if(wts[c,i]>=(1-(1E-50*10^seed_mult)) & seed_mult<=48){
-            wts[c,i]=1-1E-50*10^seed_mult
-          }
-        }
-        draw_wts[,i] = rmultinom(1,1,wts[,i])
-      }
-      seed_mult=seed_mult+1
-      if(seed_mult>250){
-        draw_wts[,n]=rep(1/k,k)
-        break
-      }
-    }
+    # seed_mult=1
+    # while(any(rowSums(draw_wts)==0)){ # if no sample in a cluster, draw until at least one sample in each cluster
+    #   #if(trace){cat("Drawing again",seed_mult,"\n")}
+    #   for(i in 1:n){
+    #     set.seed(seed_mult*n+i)
+    #     for(c in 1:k){
+    #       if(wts[c,i]<=(1E-50*10^seed_mult) & seed_mult<=48){
+    #         wts[c,i]=1E-50*10^seed_mult
+    #       } else if(wts[c,i]>=(1-(1E-50*10^seed_mult)) & seed_mult<=48){
+    #         wts[c,i]=1-1E-50*10^seed_mult
+    #       }
+    #     }
+    #     draw_wts[,i] = rmultinom(1,1,wts[,i])
+    #   }
+    #   seed_mult=seed_mult+1
+    #   if(seed_mult>250){
+    #     draw_wts[,n]=rep(1/k,k)
+    #     break
+    #   }
+    # }
     wts=draw_wts
   }          # Keep drawing until at least one in each cluster
 
