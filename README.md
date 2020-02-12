@@ -35,8 +35,9 @@ negative binomials. For ease of use, simulated data will be saved
 automatically in the `save_dir` directory, and will be saved in object
 `sim.dat`. In this example, one dataset is simulated (`nsims`) with
 10000 genes (`G`) and 50 samples (`n`) from 1 batch (`B`) with 2
-underlying clusters (`K`), baseline \_2 mean of 12 (`beta0`), and
-overdispersion of 0.35 (`phi`).
+underlying clusters (`K`), baseline
+![\\log\_2](https://latex.codecogs.com/png.latex?%5Clog_2 "\\log_2")
+mean of 12 (`beta0`), and overdispersion of 0.35 (`phi`).
 
 ``` r
 B=1; g=10000; K=2; n=50; LFCg=1; pDEg=0.05; beta0=12; phi0=0.35; nsims=1
@@ -112,7 +113,7 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 321.833613157272"
+#> [1] "time elapsed: 320.759639024734"
 ```
 
 ### Step 3: Summarizing and visualizing results
