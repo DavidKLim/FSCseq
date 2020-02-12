@@ -43,6 +43,7 @@ B=1; g=10000; K=2; n=50; LFCg=1; pDEg=0.05; beta0=12; phi0=0.35; nsims=1
 set.seed(999)
 FSCseq::simulateData(B=B, g=g, K=K, n=n, LFCg=LFCg, pDEg=pDEg,
              beta0=beta0, phi0=phi0, nsims=nsims, save_dir="~/test")
+#> [1] "~/test/2_50_1.000000_0.050000_12.000000_0.350000_sim1_data.RData"
 ```
 
 The simulated count matrix `cts` can then be accessed as
@@ -111,7 +112,7 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 319.707175970078"
+#> [1] "time elapsed: 321.833613157272"
 ```
 
 ### Step 3: Summarizing and visualizing results
