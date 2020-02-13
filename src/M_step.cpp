@@ -293,9 +293,11 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
 		/* CDA */
 		int CDA_index=0;
-		int CDA_conv=0;
+		int CDA_conv=0;		
 		arma::vec b0=b;   // previous CDA iteration b=(beta,gamma)
 		arma::vec b1=b;   // current CDA iteration b=(beta,gamma)
+		
+		arma::vec b2=b;  // previous IRLS iteration b=(beta,gamma)
 		
 		while(CDA_conv == 0){
 			
@@ -485,23 +487,29 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 	IRLS_iters += 1;  // add 1 to IRLS_iters
 	// Convergence of IRLS
     if(i>=1){
-		double diff_beta=0;
+		/*double diff_beta=0;
 		double diff_gamma=0;
 		for(int cc=0; cc<k; cc++){
 			// (1/K) * sum(beta^(m+1)-beta^(m))/beta^(m)
-			diff_beta += fabs(temp_beta(i,cc)-temp_beta(i-1,cc))/fabs(temp_beta(i-1,cc)*k);
+			diff_beta += fabs(temp_beta(i,cc)-temp_beta(i-1,cc))/fabs(temp_beta(i-1,cc));
 		}
 		for(int cc=0; cc<p; cc++){
 			if(p>0){
 				// (1/P) * sum(gamma^(m+1)-gamma^(m))/gamma^(m)
-				diff_gamma += fabs(temp_gamma(i,cc)-temp_gamma(i-1,cc))/fabs(temp_gamma(i-1,cc)*p);
+				diff_gamma += fabs(temp_gamma(i,cc)-temp_gamma(i-1,cc))/fabs(temp_gamma(i-1,cc));
 			}
+		}*/
+		
+		// diff_b2 = mean( abs(b1-b0)/abs(b0) ) = mean(abs((b1-b0)/b0))
+		double diff_b2=0;
+		for(int cc=0; cc<(k+p); cc++){
+			diff_b2 += fabs(b(cc)-b2(cc))/fabs(b2(cc)*(k+p));   // theta not part of convergence
 		}
 
 		if(i==maxit_IRLS-1){
 			break;
 		}
-		if((diff_beta+diff_gamma)<IRLS_tol){
+		if(diff_b2<IRLS_tol){
 			// convergence threshold of IRLS (absolute relative change of ests of beta + " of gamma < IRLS_tol)
 			break;
 		}
