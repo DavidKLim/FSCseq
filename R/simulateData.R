@@ -49,38 +49,39 @@ simulate_counts=function(K,B,n,g,
 #' @param nsims integer, number of datasets to simulate given the input conditions. Default is 25.
 #' @param disp string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'
 #' @param n_pred integer, number of samples in simulated prediction dataset. Default is 25
+#' @param save_file boolean: TRUE (save each set of simulations)
 #' @param save_dir string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'
-#' @param save_file string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'
+#' @param save_pref string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'
 #'
-#' @return saved file in '<save_dir>/<save_file>_sim<1:nsims>_data.RData'
+#' @return if save_file=TRUE, then saved file in '<save_dir>/<save_pref>_sim<1:nsims>_data.RData'. Otherwise, list of length 'nsims', with a sim.dat list object for each simulation
 #'
 #' @export
 simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
                         LFCg, pDEg, sigma_g=0.1,
                         LFCb=1, pDEb=0.5, sigma_b=0,
                         beta0, phi0, SF=NULL,
-                        nsims=25, disp="gene", n_pred=25, save_dir=NULL,save_file=NULL){
+                        nsims=25, disp="gene", n_pred=25, save_file=TRUE, save_dir=NULL, save_pref=NULL){
   if(B==1){LFCb=0}
 
-  if(is.null(save_dir)){
-    dir_name1=sprintf("Simulations/%f_%f",sigma_g,sigma_b)
-    dir_name=sprintf("%s/B%d_LFCb%d",dir_name1,B,LFCb)
-    ifelse(!dir.exists(dir_name1),
-           dir.create(dir_name1),
+  if(save_file){
+    if(is.null(save_dir)){
+      dir_name1=sprintf("Simulations/%f_%f",sigma_g,sigma_b)
+      dir_name=sprintf("%s/B%d_LFCb%d",dir_name1,B,LFCb)
+      ifelse(!dir.exists(dir_name1),
+             dir.create(dir_name1),
+             FALSE)
+    }else{
+      dir_name=save_dir
+    }
+    ifelse(!dir.exists(dir_name),
+           dir.create(dir_name),
            FALSE)
-  }else{
-    dir_name=save_dir
+
+    if(is.null(save_pref)){
+      file_name=sprintf("%d_%d_%f_%f_%f_%f",
+                        K,n,LFCg,pDEg,beta0[1],phi0[1])   # just the first elt of beta0 and phi0
+    }else{file_name=save_pref}
   }
-  ifelse(!dir.exists(dir_name),
-         dir.create(dir_name),
-         FALSE)
-
-
-  if(is.null(save_file)){
-    file_name=sprintf("%d_%d_%f_%f_%f_%f",
-                      K,n,LFCg,pDEg,beta0[1],phi0[1])   # just the first elt of beta0 and phi0
-  }else{file_name=save_file}
-
   match=match.call()
   # add N(0,sigma) noise to each gene/cluster
   # introduced sigma_g: draw LFC for each DE gene from N(LFCg,sigma_g). same w/ sigma_b for batch
@@ -115,13 +116,16 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
   }
 
   beta=matrix(beta0,nrow=g,ncol=K)
-
+  all_sim.dats = list()
   for(i in 1:nsims){
 
     # order params in file name: K, n, LFCg, pDEg, beta, phi (use universally)
-    file.name=sprintf("%s/%s_sim%d_data.RData",
-                      dir_name,file_name,i)
-    if(file.exists(file.name)){next}else{print(file.name)}
+    if(save_file){
+      # skip files that are already saved (already simulated)
+      file.name=sprintf("%s/%s_sim%d_data.RData",
+                        dir_name,file_name,i)
+      if(file.exists(file.name)){warning("Data with same file name already simulated. Remove existing file to replace. Skipping simulation of existing file"); next}else{print(file.name)}
+    }
 
     if(is.null(SF)){
       SF=rnorm(n,1,0.25)
@@ -177,21 +181,26 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
                  SF=SF, SF_pred=SF_pred,
                  DEg_ID=DEg_ID, sim_params=sim_params)
 
-    save(sim.dat,file=file.name)
+    if(save_file){
+      save(sim.dat,file=file.name)
+    }else{all_sim.dats[[i]]=sim.dat}
+
   }
+  if(save_file){
+    file.name2=sprintf("%s/%s_dataParams.txt",dir_name,file_name)
+    sink(file=file.name2)
+    print(match)
+    cat(paste("\nB=",B," ,g=",g,", sigma_g=",sigma_g,", sigma_b=",sigma_b,"\n",
+              sep=""))
+    cat(paste("LFCb=",LFCb,", pDEb=",pDEb,", disp=",disp,", n_pred=",n_pred,"\n",
+              sep=""))
+    cat("\npK:\n")
+    write.table(pK,quote=F,col.names=F)
+    cat("\npB:\n")
+    write.table(pB,quote=F,col.names=F)
 
-  file.name2=sprintf("%s/%s_dataParams.txt",dir_name,file_name)
-  sink(file=file.name2)
-
-  print(match)
-  cat(paste("\nB=",B," ,g=",g,", sigma_g=",sigma_g,", sigma_b=",sigma_b,"\n",
-            sep=""))
-  cat(paste("LFCb=",LFCb,", pDEb=",pDEb,", disp=",disp,", n_pred=",n_pred,"\n",
-            sep=""))
-  cat("\npK:\n")
-  write.table(pK,quote=F,col.names=F)
-  cat("\npB:\n")
-  write.table(pB,quote=F,col.names=F)
-
-  sink()
+    sink()
+  }else{
+    return(all_sim.dats)
+  }
 }

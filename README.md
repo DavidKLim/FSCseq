@@ -113,7 +113,7 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 317.272452116013"
+#> [1] "time elapsed: 332.066520929337"
 ```
 
 ### Step 3: Summarizing and visualizing results

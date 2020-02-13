@@ -7,7 +7,7 @@
 simulateData(K, B = 1, g = 10000, n, pK = NULL, pB = NULL, LFCg,
   pDEg, sigma_g = 0.1, LFCb = 1, pDEb = 0.5, sigma_b = 0, beta0,
   phi0, SF = NULL, nsims = 25, disp = "gene", n_pred = 25,
-  save_dir = NULL, save_file = NULL)
+  save_file = TRUE, save_dir = NULL, save_pref = NULL)
 }
 \arguments{
 \item{K}{integer, number of clusters}
@@ -46,12 +46,14 @@ simulateData(K, B = 1, g = 10000, n, pK = NULL, pB = NULL, LFCg,
 
 \item{n_pred}{integer, number of samples in simulated prediction dataset. Default is 25}
 
+\item{save_file}{boolean: TRUE (save each set of simulations)}
+
 \item{save_dir}{string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'}
 
-\item{save_file}{string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'}
+\item{save_pref}{string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'}
 }
 \value{
-saved file in '<save_dir>/<save_file>_sim<1:nsims>_data.RData'
+if save_file=TRUE, then saved file in '<save_dir>/<save_pref>_sim<1:nsims>_data.RData'. Otherwise, list of length 'nsims', with a sim.dat list object for each simulation
 }
 \description{
 Simulate data based on input simulation parameters. Size factors are custom input
