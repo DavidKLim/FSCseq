@@ -37,7 +37,7 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
 
   if(!trace){trace.file=NULL}
 
-  if(is.null(batch)){warning("No input batch. Assuming all samples from same batch");batch=rep(1,ncol(cts))}
+  if(is.null(batch)){warning("No input batch. Assuming all samples from same batch\n");batch=rep(1,ncol(cts))}
   if(length(unique(batch))==1){
     X=NULL
   } else{
