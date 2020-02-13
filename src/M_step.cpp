@@ -505,11 +505,9 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			// convergence threshold of IRLS (absolute relative change of ests of beta + " of gamma < IRLS_tol)
 			break;
 		}
-
 		if(i==TIME_ITER){
 			timer.step("break conds");
 		}
-
 		if(i==TIME_ITER && output_timer==1){
 			Rcpp::NumericVector res(timer);
 			Rcpp::print(res);
