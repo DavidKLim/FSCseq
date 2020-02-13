@@ -219,16 +219,13 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 	arma::vec b = coefs_j;     // for use in simplifying X*b later
 
 	arma::mat temp_beta(maxit_IRLS,k); temp_beta.zeros();
-	int continue_beta = 1;
 
 	arma::vec gamma(k+p);
 	arma::mat temp_gamma(maxit_IRLS,k+p);   // initialize to have (k+p) cols (guaranteed to be >0), then reshape
-	int continue_gamma = 0;
 
 	  if(p>0){
 		gamma.resize(p); gamma = coefs_j.subvec(k,k+p-1);
 		temp_gamma.reshape(maxit_IRLS,p); temp_gamma.zeros();
-		continue_gamma = 1;
 	  } else{
 		gamma.reshape(0,0);
 		temp_gamma.reshape(0,0);
@@ -256,7 +253,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
 	int CDA_iters=0;   // track how many CDA iterations total
 	int IRLS_iters=0;  // track how many IRLS iterations total
-
+	
     /* IRLS */
 	for(int i=0; i<maxit_IRLS; i++){
 
@@ -378,34 +375,32 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 				//Rprintf("full_resid size:%d",full_resid.size());   // n*k
 
 				/* Update beta */
-				if(continue_beta==1){
-					// if(optim_method == "direct"){
-					//   beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
-					// 	((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
-					// } else if(optim_method == "GD"){
-					// 	beta(c) = beta(c) - 1 * (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))));
-					// } else if(optim_method == "NR"){
-					// 	beta(c) = beta(c) - (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))))  /
-					// 	(accu(vec_W(ids_c) % pow(Xc_ids_c,2))/N + lambda*(1-alpha)*(k-1));
-					// }
-					beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(n_k(c)) )  /
-					  ((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(n_k(c)) );
+				
+				// if(optim_method == "direct"){
+				//   beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
+				// 	((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
+				// } else if(optim_method == "GD"){
+				// 	beta(c) = beta(c) - 1 * (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))));
+				// } else if(optim_method == "NR"){
+				// 	beta(c) = beta(c) - (-accu(vec_W(ids_c) % Xc_ids_c % full_resid(ids_c))/N + lambda*(1-alpha)*(k*beta(c)-accu(beta)-accu(theta.row(c))))  /
+				// 	(accu(vec_W(ids_c) % pow(Xc_ids_c,2))/N + lambda*(1-alpha)*(k-1));
+				// }
+				beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(n_k(c)) )  /
+				  ((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(n_k(c)) );
 
-					//Rprintf("c=%d,beta(c)=%f",c,beta(c));
+				//Rprintf("c=%d,beta(c)=%f",c,beta(c));
 
-					if(beta(c) < (-50)){
-						/* Rprintf("Cluster %d, gene %d truncated at -100",c+1,j); */
-						beta(c) = -50;
-					}
-
-					/* if beta is NaN or too large (2^50 ~ 1E15. RNA-seq goes up to about 1E9) */
-					if(beta(c) != beta(c) || beta(c) > 50){
-						beta(c) = log2(mean(y_j));
-						//Rprintf("Beta of gene%d cl%d is NaN. Restarting beta at mean of all samples\n",j,c+1);
-					}
-
-					b = join_cols(beta,gamma);
+				if(beta(c) < (-50)){
+					/* Rprintf("Cluster %d, gene %d truncated at -100",c+1,j); */
+					beta(c) = -50;
 				}
+
+				/* if beta is NaN or too large (2^50 ~ 1E15. RNA-seq goes up to about 1E9) */
+				if(beta(c) != beta(c) || beta(c) > 50){
+					beta(c) = log2(mean(y_j));
+					//Rprintf("Beta of gene%d cl%d is NaN. Restarting beta at mean of all samples\n",j,c+1);
+				}
+				b = join_cols(beta,gamma);
 
 			}
 
@@ -414,9 +409,8 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			}
 
 			/* Update gammas */
-			if(est_covar==1 && continue_gamma==1){
-
-			  /* Hard coded coordinate-wise covar_beta: */
+			if(est_covar==1){
+			  /* Only if covariates are input into algorithm */
 			  for(int pp=0; pp<p; pp++){
 				/* Xpp: X with p'th col removed, betapp: beta with p'th elt removed */
 				arma::vec gammapp=gamma;
@@ -466,10 +460,10 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		b1=b;
 		// Convergence of CDA
 		if(CDA_index > 0){
-			// diff_b = sum( abs(b1-b0)/abs(b0) ) = sum(abs((b1-b0)/b0))
+			// diff_b = mean( abs(b1-b0)/abs(b0) ) = mean(abs((b1-b0)/b0))
 			double diff_b=0;
 			for(int cc=0; cc<(k+p); cc++){
-				diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc));   // theta not part of convergence
+				diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc)*(k+p));   // theta not part of convergence
 			}
 			if(diff_b < CDA_tol){
 				CDA_conv=1;
@@ -494,28 +488,21 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		double diff_beta=0;
 		double diff_gamma=0;
 		for(int cc=0; cc<k; cc++){
+			// (1/K) * sum(beta^(m+1)-beta^(m))/beta^(m)
 			diff_beta += fabs(temp_beta(i,cc)-temp_beta(i-1,cc))/fabs(temp_beta(i-1,cc)*k);
 		}
 		for(int cc=0; cc<p; cc++){
 			if(p>0){
+				// (1/P) * sum(gamma^(m+1)-gamma^(m))/gamma^(m)
 				diff_gamma += fabs(temp_gamma(i,cc)-temp_gamma(i-1,cc))/fabs(temp_gamma(i-1,cc)*p);
 			}
 		}
 
-		if(diff_beta<IRLS_tol){
-			continue_beta=0;
-		}
-		if(p>0){
-			if(diff_gamma<IRLS_tol){
-				continue_gamma=0;
-			}
-		}else{continue_gamma=0;}
-
-
 		if(i==maxit_IRLS-1){
 			break;
 		}
-		if(continue_beta==0 && continue_gamma==0){
+		if((diff_beta+diff_gamma)<IRLS_tol){
+			// convergence threshold of IRLS (absolute relative change of ests of beta + " of gamma < IRLS_tol)
 			break;
 		}
 
