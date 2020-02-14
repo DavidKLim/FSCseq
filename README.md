@@ -49,7 +49,8 @@ sim.dat = FSCseq::simulateData(B=B, g=g, K=K, n=n, LFCg=LFCg, pDEg=pDEg,
 
 The `simulateData` function outputs a list of length `nsims` with a
 `sim.dat` list object for each simulation. The contents of each
-`sim.dat` object can be accessed as follows:
+`sim.dat` object can be accessed, and counts and true cluster labels can
+be extracted as follows:
 
 ``` r
 str(sim.dat)
@@ -140,13 +141,12 @@ analysis can be done on your own data using the same steps.
 
 ### Step 2: Performing clustering and feature selection
 
-Input the simulated `cts` matrix into `FSCseq_workflow`. Default search
-grids for tuning parameters are preset. For brevity of illustration, we
-go through FSCseq analysis with a much smaller grid of values of tuning
-parameters (takes about 7-8 minutes):
+Input the simulated (or custom) `cts` matrix into `FSCseq_workflow`.
+Default search grids for tuning parameters are preset. For brevity of
+illustration, we go through FSCseq analysis with a much smaller grid of
+values of tuning parameters (takes about 7-8 minutes):
 
 ``` r
-cts = sim.dat$cts; true_cls=sim.dat$cls
 t0 = as.numeric(Sys.time())
 FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(1.0, 1.5),
                                          alpha_search=c(0.1, 0.2),dir_name="~/test/Saved_Results")
@@ -154,7 +154,7 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 426.818780183792"
+#> [1] "time elapsed: 420.202751159668"
 ```
 
 ### Step 3: Summarizing and visualizing results
