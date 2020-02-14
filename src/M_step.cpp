@@ -75,6 +75,11 @@ arma::mat compute_theta(arma::vec beta, double lambda, double alpha, int k){
 			}
 		}
 	}
+	/*for(int c=0; c<k; c++){
+		for(int cc=0; cc<k; cc++){
+			theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
+		}
+	}*/
 	return(theta);
 }
 
@@ -466,6 +471,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			double diff_b=0;
 			for(int cc=0; cc<(k+p); cc++){
 				diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc)*(k+p));   // theta not part of convergence
+				//diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc)); 
 			}
 			if(diff_b < CDA_tol){
 				CDA_conv=1;

@@ -27,7 +27,7 @@ simulated data. We show how to use a real RNA-seq read count dataset
 instead of simulated data. The extension to a real dataset is
 straight-forward
 
-### Step 1: Simulating data
+### Step 1a: Simulating data
 
 To simulate data, use the `simulateData` function available in `FSCseq`.
 Read count expression will be simulated from a finite mixture of
@@ -40,20 +40,51 @@ underlying clusters (`K`), baseline
 mean of 12 (`beta0`), and overdispersion of 0.35 (`phi`).
 
 ``` r
-B=1; g=10000; K=2; n=50; LFCg=1; pDEg=0.05; beta0=12; phi0=0.35; nsims=1
+B=1; g=10000; K=2; n=50; LFCg=1; pDEg=0.05; beta0=12; phi0=0.35
 set.seed(999)
-FSCseq::simulateData(B=B, g=g, K=K, n=n, LFCg=LFCg, pDEg=pDEg,
-             beta0=beta0, phi0=phi0, nsims=nsims, save_dir="~/test")
-#> [1] "~/test/2_50_1.000000_0.050000_12.000000_0.350000_sim1_data.RData"
+sim.dat = FSCseq::simulateData(B=B, g=g, K=K, n=n, LFCg=LFCg, pDEg=pDEg,
+             beta0=beta0, phi0=phi0, nsims=1, save_file=FALSE)[[1]]
+# for save_file=TRUE, can input custom save_dir and save_prefix for parallelization of downstream analyses
 ```
 
-The simulated count matrix `cts` can then be accessed as
-follows:
+The `simulateData` function outputs a list of length `nsims` with a
+`sim.dat` list object for each simulation. The contents of each
+`sim.dat` object can be accessed as follows:
 
 ``` r
-load(sprintf("~/test/%d_%d_%f_%f_%f_%f_sim1_data.RData",K,n,LFCg,pDEg,beta0,phi0))
-cts = sim.dat$cts
+str(sim.dat)
+#> List of 9
+#>  $ cts       : num [1:10000, 1:50] 7494 19478 3728 3721 10575 ...
+#>  $ cts_pred  : num [1:10000, 1:25] 3436 12903 2449 4670 2733 ...
+#>  $ cls       : int [1:50] 1 1 1 1 2 1 1 2 2 1 ...
+#>  $ cls_pred  : int [1:25] 1 2 1 1 2 2 2 1 2 2 ...
+#>  $ batch     : num [1:50] 0 0 0 0 0 0 0 0 0 0 ...
+#>  $ SF        : num [1:50] 0.93 0.672 1.199 1.068 0.931 ...
+#>  $ SF_pred   : num [1:25] 0.971 0.839 1.436 1.092 0.983 ...
+#>  $ DEg_ID    : logi [1:10000] TRUE TRUE TRUE TRUE TRUE TRUE ...
+#>  $ sim_params:List of 18
+#>   ..$ K       : num 2
+#>   ..$ B       : num 1
+#>   ..$ g       : num 10000
+#>   ..$ n       : num 50
+#>   ..$ n_pred  : num 25
+#>   ..$ pK      : num [1:2] 0.5 0.5
+#>   ..$ pB      : num 1
+#>   ..$ LFCg    : num 1
+#>   ..$ pDEg    : num 0.05
+#>   ..$ sigma_g : num 0.1
+#>   ..$ LFCb    : num 0
+#>   ..$ pDEb    : num 0.5
+#>   ..$ sigma_b : num 0
+#>   ..$ beta    : num [1:10000, 1:2] 12 12 12 12 12 12 12 12 12 12 ...
+#>   ..$ phi     : num [1:10000] 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 ...
+#>   ..$ disp    : chr "gene"
+#>   ..$ LFCg_mat: num [1:10000, 1:2] 1 1 0 1 1 1 1 1 1 1 ...
+#>   ..$ DEb_ID  : logi [1:10000] FALSE TRUE FALSE TRUE TRUE TRUE ...
+cts=sim.dat$cts; true_cls=sim.dat$cls
 ```
+
+### Step 1b: Analyzing custom data
 
 To perform analysis on your own data, download the read counts and load
 it. This example shows how to acquire the TCGA Breast Cancer Dataset
@@ -86,34 +117,44 @@ cts <- cts[!duplicated(cts[,1:ncol(cts)]),]
 anno <- colData(data)@listData
 ```
 
-Optionally, you may want to pre-filter out genes with low FPKM values.
-Then, you can proceed with the subsequent steps with the `cts`, matrix
-as in the simulated data. Details of the processing steps and analyses
-on the TCGA BRCA dataset can be found
-[here](https://github.com/DavidKLim/FSCseqPaper). In the subsequent
-steps, we walk through just the simulated data.
+Optionally, you can to pre-filter out genes with low FPKM values.
+Subtype information for the TCGA BRCA dataset used in our paper can be
+obtained using the `TCGAquery_subtype()` function, and used as the true
+cluster labels. These true cluster labels are optional, but useful to
+track diagnostics in FSCseq:
+
+``` r
+BRCA_tab = TCGAquery_subtype("BRCA")
+match_ids = match(anno$patient,BRCA_tab$patient) # match patients
+anno$subtypes=BRCA_tab$BRCA_Subtype_PAM50[match_ids]
+
+true_cls = as.numeric(as.factor(anno$subtypes))
+```
+
+Then, you can proceed with the subsequent steps with the `cts` matrix
+and true cluster labels `true_cls`, as in the simulated data. Details of
+the processing steps and analyses on the TCGA BRCA dataset performed in
+our paper can be found [here](https://github.com/DavidKLim/FSCseqPaper).
+In the subsequent steps, we walk through just the simulated dataset, but
+analysis can be done on your own data using the same steps.
 
 ### Step 2: Performing clustering and feature selection
 
 Input the simulated `cts` matrix into `FSCseq_workflow`. Default search
 grids for tuning parameters are preset. For brevity of illustration, we
 go through FSCseq analysis with a much smaller grid of values of tuning
-parameters (takes about 5-6
-minutes):
+parameters (takes about 7-8 minutes):
 
 ``` r
-load(sprintf("~/test/%d_%d_%f_%f_%f_%f_sim1_data.RData",K,n,LFCg,pDEg,beta0,phi0))
 cts = sim.dat$cts; true_cls=sim.dat$cls
-
 t0 = as.numeric(Sys.time())
-FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(0.25,0.50),alpha_search=c(0.3,0.4),dir_name="~/test/Saved_Results")
-#> Warning in FSCseq::FSCseq_workflow(cts = cts, K_search = c(2:3),
-#> lambda_search = c(0.25, : No input batch. Assuming all samples from same
-#> batch
+FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(1.0, 1.5),
+                                         alpha_search=c(0.1, 0.2),dir_name="~/test/Saved_Results")
+#> Warning in FSCseq::FSCseq_workflow(cts = cts, K_search = c(2:3), lambda_search = c(1, : No input batch. Assuming all samples from same batch
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 332.066520929337"
+#> [1] "time elapsed: 426.818780183792"
 ```
 
 ### Step 3: Summarizing and visualizing results
@@ -125,9 +166,8 @@ included genes in `idx` to compare FSCseq results `res` with simulated
 data:
 
 ``` r
-res = FSCseq_results$results
-processed.dat = FSCseq_results$processed.dat
-idx = processed.dat$idx
+res = FSCseq_results$results; processed.dat = FSCseq_results$processed.dat
+idx = processed.dat$idx  # IDs of genes that are included in analysis after pre-filtering
 library(mclust)
 #> Package 'mclust' version 5.4.5
 #> Type 'citation("mclust")' for citing this R package in publications.
@@ -150,16 +190,15 @@ true_disc = sim.dat$DEg_ID[idx];
 FSC_disc = res$discriminatory
 
 print(paste("TPR: ",sum(true_disc & FSC_disc)/sum(true_disc)))
-#> [1] "TPR:  0.64070351758794"
+#> [1] "TPR:  0.746231155778894"
 print(paste("FPR: ",sum(!true_disc & FSC_disc)/sum(!true_disc)))
-#> [1] "FPR:  0.000869187309865276"
+#> [1] "FPR:  0.00217296827466319"
 ```
 
 We can visualize the expression patterns by plotting a heatmap, with
 column annotations denoting cluster membership (red/black)
 
 ``` r
-processed.dat = FSCseq_results$processed.dat
 norm_y = processed.dat$norm_y
 heatmap(log(norm_y[sim.dat$DEg_ID,]+0.1),scale="row",ColSideColors = as.character(res$cls),xlab="Samples",ylab="Genes",main="Heatmap of cluster-discriminatory genes")
 ```

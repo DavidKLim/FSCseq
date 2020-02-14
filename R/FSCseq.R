@@ -188,6 +188,7 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     # C step
     draw_wts=wts                 # initialize
     for(i in 1:n){
+      set.seed(i) # seed for each sample to stabilize clustering when Tau is very large
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
     # seed_mult=1
@@ -458,7 +459,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  true_clusters=NULL, true_disc=NULL,
                  init_parms=FALSE,init_coefs=NULL,init_phi=NULL,init_cls=NULL,init_wts=NULL,
                  n_rinits=if(method=="EM"){20}else if(method=="CEM"){1},         # fewer searches for CEM to minimize computational cost
-                 maxit_inits=if(method=="EM"){15}else if(method=="CEM"){100}, # for CEM, tolerates end temp (Tau) of 2 at end of initialization
+                 maxit_inits=if(method=="EM"){15}else if(method=="CEM"){100},  # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,maxit_CDA=50,EM_tol=1E-6,IRLS_tol=1E-4,CDA_tol=1E-4,
                  disp="gene", # disp is commented out. just left for simulations
                  method="EM",init_temp=nrow(y),
@@ -729,14 +730,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   }
 
 
-  # if init_method="max": will have specified init_cls, init_parms=T, init_coefs, and init_phi
-  # if init_method="emaEM": will have specified init_cls, init_parms=F. init_wts will remain NULL
-  # if init_method="BIA": will have specified init_wts, init_parms=F. init_cls will remain NULL
-
   # CEM is set to F for final run to convergence. If inits were searched by
   # CEM, then temperature would have already reached 1 --> no need for CEM.
   # no inits searched for K=1 --> CEM and EM are equivalent for K=1.
-
+  #mb_size=nrow(y)
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
@@ -1204,6 +1201,7 @@ EM_run <- function(ncores,X=NA, y, k,
     }
 
     # E step
+    if(trace){cat(paste("Tau:",Tau,"\n"))}
     start_E = as.numeric(Sys.time())
     Estep_fit=E_step(wts,l,pi,CEM,Tau,PP_filt)
     wts=Estep_fit$wts; keep=Estep_fit$keep; Tau=Estep_fit$Tau; CEM=Estep_fit$CEM
@@ -1236,6 +1234,9 @@ EM_run <- function(ncores,X=NA, y, k,
 
       # if true_disc gene list is input
       if(!is.null(true_disc)){
+        TPR=sum(true_disc & disc_ids)/sum(true_disc)
+        FPR=sum(!true_disc & disc_ids)/sum(!true_disc)
+        cat(paste("TPR:",TPR,", FPR:",FPR,"\n"))
 
         # pick a disc gene
         if(sum(true_disc)==0){
