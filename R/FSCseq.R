@@ -110,7 +110,6 @@ theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine
 #' @export
 SCAD_soft_thresholding=function(diff_beta,lambda,alpha){
   a=3.7
-  #if(abs(diff_beta)<=2*lambda*alpha){
   if(abs(diff_beta)<=(alpha/(1-alpha))+lambda*alpha ){
     if(abs(diff_beta)<=alpha/(1-alpha)){
       return(0)
@@ -166,8 +165,8 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     #if(Tau>1){
       Tau = 0.9*Tau
     #} else{
-    #  Tau=1       # after Tau hits 1 --> fix at 1
-    #  CEM=F       # after Tau is fixed at 1 --> no more stochastic sampling
+    #  Tau=1       # after Tau hits 1 --> EM (off)
+    #  CEM=F
     #}
   }
 
@@ -192,7 +191,7 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
     wts=draw_wts
-  }          # Keep drawing until at least one in each cluster
+  }
 
   # Input in M step only samples with PP's > 0.001
   if(!is.null(PP_filt)){
@@ -441,19 +440,13 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  n_rinits=if(method=="EM"){20}else if(method=="CEM"){1},         # fewer searches for CEM to minimize computational cost
                  maxit_inits=if(method=="EM"){15}else if(method=="CEM"){100},  # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,maxit_CDA=50,EM_tol=1E-6,IRLS_tol=1E-4,CDA_tol=1E-4,
-                 disp="gene", # disp is commented out. just left for simulations
+                 disp="gene",
                  method="EM",init_temp=nrow(y),
                  trace=F,trace.file=NULL,
                  mb_size=NULL,PP_filt=1e-3){
-  # disp = "gene". disp="cluster" turned off (for now)
+  # disp = "gene". (disp="cluster" turned off)
   disp="gene"
-  # init_method = c("max","emaEM","BIA"). Turned off --> max: minimum BIC
-  # optim_method = c("direct","NR","GD"). Direct, Newton-Raphson, or Gradient descent (fixed step size of 2)). All equivalent
-  # BIC_penalty = c("n","n2","ng","ng2,"en","en2","eng","eng2")     # turned off --> set to "ng"
-  # gamma=NULL: EBIC hyperparameter (EBIC turned off).
   # set PP_filt = NULL or 0 < PP_filt < 1e-50: turn off PP_filt in M step (not recommended due to computation time)
-
-
   # y: raw counts
   # k: #clusters
   # size_factors: SF's derived from DESeq2
@@ -462,7 +455,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   # true_disc: if applicable. For diagnostics tracking of disc/nondisc genes
   # init_parms: TRUE if initial coefficient estimates/dispersion estimates are input
   # init_coefs & init_phi: Initial estimates, if applicable
-  # disp = c(gene, cluster), depending on whether dispersions are gene-specific or cluster-specific
+  # disp = c(gene, cluster), depending on whether dispersions are gene-specific (default) or cluster-specific (turned off)
   # init_cls: Initial clustering
   # n_rinits: Number of initial clusterings searched with maxit=15. More initializations = more chance to attain global max
 
@@ -545,17 +538,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   if(k==1){
     init_cls=rep(1,n)
   }
-
-  # # if initial clustering is provided (turned off: can now let fewer initial clusters than k)
-  # if(!is.null(init_cls)){if(length(unique(init_cls))<k){ # if previous clustering labels have fewer than k cls (warm starts)
-  #   if(trace){
-  #     if(!is.null(trace.file)){
-  #       sink()
-  #     }
-  #   }
-  #   return(list(k=k,pi=NA,coefs=init_coefs,Q=NA,BIC=NA,discriminatory=NA,init_clusters=init_cls,clusters=init_cls,
-  #               phi=init_phi,wts=NA,time_elap=0,lambda=lambda,alpha=alpha,size_factors=size_factors,norm_y=norm_y,DNC=T,n_its=0,lower_K=T))     # NA values for BIC/n_its/time_elap. don't run FSCseq
-  # }}
 
   # if initial clustering is not provided
   if(is.null(init_cls) & is.null(init_wts) & k>1){
@@ -645,15 +627,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       cat("FINAL INITIALIZATION:\n")
       cat(paste(colnames(all_init_cls)[fit_id],"\n"))
     }
-    # if(length(unique(init_cls))<k){
-    #   warning("best initialization yielded smaller k. returning result from best initialization (EM to full convergence not run)")
-    #   if(trace){
-    #     if(!is.null(trace.file)){
-    #       sink()
-    #     }
-    #   }
-    #   return(all_fits[[fit_id]])
-    # }
 
     # if(init_method %in% c("emaEM","BIA")){
     #   #### Consensus methods ####
@@ -710,10 +683,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   }
 
 
-  # CEM is set to F for final run to convergence. If inits were searched by
-  # CEM, then temperature would have already reached 1 --> no need for CEM.
-  # no inits searched for K=1 --> CEM and EM are equivalent for K=1.
-  #mb_size=nrow(y)
+  # CEM is set to F for final run to convergence (after initialization).
   results=EM_run(ncores,X,y,k,lambda,alpha,size_factors,norm_y,true_clusters,true_disc,
                  init_parms=init_parms,init_coefs=init_coefs,init_phi=init_phi,disp=disp,
                  init_cls=init_cls,init_wts=init_wts,CEM=F,init_Tau=1,
@@ -841,7 +811,7 @@ EM_run <- function(ncores,X=NA, y, k,
   theta_list <- list()            # temporary to hold all K x K theta matrices across EM iterations
   temp_list <- list()             # store temp to see progression of IRLS
   phi_list <- list()              # store each iteration of phi to see change with each iteration of EM
-  coefs_list <- list()
+  #coefs_list <- list()
   MSE_coefs = rep(0,maxit_EM)
   LFCs = matrix(0,nrow=g,ncol=maxit_EM)
 
@@ -893,15 +863,14 @@ EM_run <- function(ncores,X=NA, y, k,
     keep[rowSums(keep)==0,]=1
   }}
 
-  ## Manual turn-off of estimating phi/covariates
+  ## Manual turn-off of estimating phi/covariates & dummy trackers
   # if(init_parms){
   #   est_phi=rep(0,g)
   #   est_covar = rep(0,g)
   # }
   # all_temp_list = list()
   # all_theta_list = list()
-
-  # lower_K=FALSE         # tracks when number of a mixture component --> 0
+  # lower_K=FALSE         # tracks when number of a mixture components --> 0
 
   cl_agreement = rep(NA,maxit_EM)
   par_X=rep(list(list()),g)         # store M_step results
@@ -928,7 +897,7 @@ EM_run <- function(ncores,X=NA, y, k,
       } else{
         # Initialization
         if(ncores>1){
-          # parallelized Poisson glm + phi_ml_g initialization
+          # parallelized Poisson glm + phi initialization
           if(Sys.info()[['sysname']]=="Windows"){
             ## use mclapply for Windows ##
             clust = makeCluster(ncores)
@@ -949,7 +918,7 @@ EM_run <- function(ncores,X=NA, y, k,
           phi_g=all_init_params[,ncol(all_init_params)]
           phi=matrix(rep(phi_g,k),ncol=k)
         } else{
-          # regular for loop Poisson glm + phi_ml_g init
+          # unparallelized loop Poisson glm + phi init
           for(j in 1:g){
             #j,y_j,XX,k,covars,p,offsets,wts,keep
             init_fit=glm.init(j,y[j,],XX,k,offsets,wts,keep)
@@ -1007,14 +976,9 @@ EM_run <- function(ncores,X=NA, y, k,
     # M step
     Mstart=as.numeric(Sys.time())
 
-    # minibatching starts at iteration 5 (let EM stabilize first: turned off. see if this is stable)
-    # if(a<5){
-    #   mb_genes = 1:g
-    # } else{
     if(!is.null(mb_size)){
       mb_genes = sample(1:g,mb_size,replace=F)
     } else{ mb_genes=1:g}
-    # }
 
     if(ncores>1){
       # M_step parallelized across ncores
@@ -1071,16 +1035,6 @@ EM_run <- function(ncores,X=NA, y, k,
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
       coefs[j,] <- par_X[[j]]$coefs_j
       theta_list[[j]] <- par_X[[j]]$theta_j
-      # # correct for small computational/numerical inconsistencies: if theta = 0, set coefs to be exactly equal (fixed in Rcpp)
-      # if( length(unique(coefs[j,1:k])) != length(unique(theta_list[[j]][1,])) ){
-      #   fused_mean=rep(NA,k)    # calculate first. fix, then replace --> force all fused coefs to be equal
-      #   for(c in 1:k){
-      #     fused_mean[c] = mean(coefs[j,theta_list[[j]][,c]==0])
-      #   }
-      #   for(c in 1:k){
-      #     coefs[j,c] = fused_mean[c]
-      #   }
-      # }
       disc_ids[j]=any(theta_list[[j]]!=0)
       temp_list[[j]] <- if(p>0){cbind(par_X[[j]]$temp_beta, par_X[[j]]$temp_gamma)}else{par_X[[j]]$temp_beta}
       if(cl_phi==1){
@@ -1115,13 +1069,13 @@ EM_run <- function(ncores,X=NA, y, k,
       cat(paste("Avg % diff in phi est (across 5 its) = ",mean(diff_phi[a,]),"\n"))
     }
 
-
     if(trace){cat(paste("Average # IRLS iterations:",mean(nits_IRLS[mb_genes]),"\n"))}
     if(trace){cat(paste("Average # CDA iterations:",mean(nits_CDA[mb_genes]),"\n"))}
 
-
+    ## dummy trackers: turned off
     # all_temp_list[[a]] = temp_list
     # all_theta_list[[a]] = theta_list
+    # coefs_list[[a]] = coefs
 
     # Marker of all nondisc genes (T for disc, F for nondisc)
     if(trace){
@@ -1131,8 +1085,6 @@ EM_run <- function(ncores,X=NA, y, k,
     # save current objects in lists (to track)
     disc_ids_list[[a]] = disc_ids
     phi_list[[a]] <- phi
-    #coefs_list[[a]] = coefs       # don't need coefs_list: save some time/memory
-
 
     if(a>1){
       #MSE_coefs[a]=mean(abs((coefs_list[[a]]-coefs_list[[a-1]])))
@@ -1195,16 +1147,6 @@ EM_run <- function(ncores,X=NA, y, k,
 
     # Diagnostics Tracking
     current_clusters = apply(wts,2,which.max)
-
-    # if all PP's for a particular cluster is < PP_filt (threshold for keep).
-    # shouldn't happen now: if any rowSums(keep) == 0, those rows are set to 1 at beginning of EM
-    # if(any(rowSums(keep)==0)){
-    #   lower_K=TRUE
-    #   finalwts=wts
-    #   pi[rowSums(keep)==0] = 1e-50      # this mixt. proportion --> 0
-    #   warning(sprintf("No samples in a cluster %dth E step",a))
-    #   break
-    # }
 
     #print(current_clusters)
     if(trace){
@@ -1274,87 +1216,18 @@ EM_run <- function(ncores,X=NA, y, k,
 
   num_est_coefs = sum(m)
   num_est_params =
-    if(cl_phi==1){
+    if(cl_phi==1){ # cl_phi turned off
       sum(m)+(k-1)+p*g + k*g                # p*g for covariates, sum(m) for coefs, k*g for cluster phis, k-1 for mixture proportions
     } else{ sum(m)+(k-1)+g+p*g }            # sum(m) for coef for each discriminatory clusters (cl_phi=1). sum(m) >= g
-  # sum(m)+g for #coef+#phi (cl_phi=0)
-  # (k-1) for mixture proportions
 
   log_L<-sum(apply(log(pi) + l, 2, logsumexpc))
-
-  # if(BIC_penalty %in% c("n","n2","en","en2")){eff_n = n}else if(BIC_penalty %in% c("ng","ng2","eng","eng2")){eff_n = n*g}
-
-  # # add log(1+g*n_eff) for all log2 baseline estimates (betas)
-  # BIC_penalty_term2n=0
-  # BIC_penalty_term2ng=0
-  # for(j in 1:g){
-  #   unique_thetas = unique(theta_list[[j]][1,])  # also equal to the number of clusters for that particular gene.
-  #   for(i in 1:length(unique_thetas)){
-  #     cls_ids = which(theta_list[[j]][1,]==unique_thetas[i])      # returns all cluster indices corr to unique theta value
-  #     n_cls_ids = sum(final_clusters %in% cls_ids)                # returns number of samples in that cluster
-  #     BIC_penalty_term2ng = BIC_penalty_term2ng + log(1 + g*n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
-  #     BIC_penalty_term2n = BIC_penalty_term2n + log(1 + n_cls_ids)  # adds to penalty term log(1+g*(#samples involved in estimating that cl's beta))
-  #   }
-  # }
-  # # add in mixture proportions, gene disps, and cov effects
-  # BIC_penalty_term2ng = BIC_penalty_term2ng + ((k-1) + (p+1)*g)*log(g*n)
-  # BIC_penalty_term2n = BIC_penalty_term2n + ((k-1) + (p+1)*g)*log(n)
-
-  ## for straight BIC approx log(n) or log(ng) (NA for the '2's)
-  # BIC_penalty_term1 = if(BIC_penalty %in% c("n","en")){ log(n)*num_est_params }else if(BIC_penalty %in% c("ng","eng")){ log(n*g)*num_est_params } else{NA}
-
-  # P = g*(k+p+1) + (k-1)
-  #   kappa = log(P)/log(eff_n)
-  #   gamma = 1 - 1/(2*kappa)
-  # log_choose=function(P,j){
-  #   # returns log(choose(P,j)), avoiding overflow issues
-  #   if(j<P){
-  #     return( sum(log(seq(j+1,P,1))) - sum(log(seq(1,P-j,1))) )
-  #   } else if(j==P){
-  #     return( 0 )
-  #   }
-  # }
-  # eBIC_term = 2*gamma*log_choose(P,num_est_params)
-  # BIC_penalty_term = if(BIC_penalty %in% c("n","ng","en","eng")){
-  #       BIC_penalty_term1
-  #     }else if(BIC_penalty %in% c("ng2","eng2")){
-  #       BIC_penalty_term2ng
-  #     }else if(BIC_penalty %in% c("n2","en2")){
-  #       BIC_penalty_term2n
-  #     }
-
-  # BIC = if(BIC_penalty %in% c("n","n2","ng","ng2")){
-  #   -2*log_L + BIC_penalty_term
-  # } else if(BIC_penalty %in% c("en","en2","eng","eng2")){
-  #   -2*log_L + BIC_penalty_term + eBIC_term
-  # }
-  # BIC_n = -2*log_L + log(n)*num_est_params
-  # BIC_n2 = -2*log_L + BIC_penalty_term2n
-  # BIC_ng = -2*log_L + log(n*g)*num_est_params
-  # BIC_ng2 = -2*log_L + BIC_penalty_term2ng
-  # eBIC_n = -2*log_L + log(n)*num_est_params + eBIC_term
-  # eBIC_n2 = -2*log_L + BIC_penalty_term2n + eBIC_term
-  # eBIC_ng = -2*log_L + log(n*g)*num_est_params + eBIC_term
-  # eBIC_ng2 = -2*log_L + BIC_penalty_term2ng + eBIC_term
 
   eff_n=n*g
   BIC_penalty_term = log(eff_n)*num_est_params
   BIC = -2*log_L + BIC_penalty_term
 
-
-  # if(lower_K){
-  #   stop("something's wrong: this shouldn't be happening anymore")
-  #   # print("K not optimal. clusters identified: cls")
-  #   # print(unique(current_clusters))
-  #   # k=length(unique(current_clusters))
-  #   # BIC=Inf
-  # }
-
   if(trace){
-    # cat(paste("log(n) =",log(n),"\n"))
-    # cat(paste("sum(log(1+n_eff)) =",BIC_penalty_term2n,"\n"))
-    # cat(paste("sum(log(1+n_eff*g)) =",BIC_penalty_term2ng,"\n"))
-    # cat(paste("BIC(n,n2,ng,ng2,en,en2,eng,eng2)=\n",BIC_n,"\n",BIC_n2,"\n",BIC_ng,"\n",BIC_ng2,"\n",eBIC_n,"\n",eBIC_n2,"\n",eBIC_ng,"\n",eBIC_ng2,"\n"))
+
     cat(paste("total # coefs estimated =",num_est_coefs,"\n"))
     cat(paste("total # params estimated =",num_est_params,"\n"))
     cat(paste("-2log(L) =",-2*log_L,"\n"))
@@ -1389,13 +1262,12 @@ EM_run <- function(ncores,X=NA, y, k,
     phi = phi_g
   }
 
+  # omit some output for memory reasons
   result<-list(k=k,
                pi=pi,
                coefs=coefs,
                Q=Q[1:a],
                BIC=BIC,
-               # BIC_n=BIC_n, BIC_ng=BIC_ng, BIC_ng2=BIC_ng2,
-               # eBIC_n=eBIC_n, eBIC_ng=eBIC_ng, eBIC_ng2=eBIC_ng2, eBIC_term=eBIC_term, gamma=gamma,
                discriminatory=!(nondiscriminatory),
                init_clusters=init_cls,#init_coefs=init_coefs,init_phi=init_phi,
                clusters=final_clusters,
@@ -1461,15 +1333,6 @@ FSCseq_predict <- function(X=NULL,fit,cts_pred,SF_pred){
   }
 
   # fit is the output object from the EM() function
-
-  # # if EM fit lost mixture components (turned off now. can lose mixt component)
-  # existing_cls = unique(fit$clusters)[order(unique(fit$clusters))]      # accounts for if lower K was selected
-  # k=length(existing_cls)
-  # # store coefs of just existing clusters (existing_cls, from FSCseq fit), of just disc genes (idx)
-  # init_coefs=if(p>0){    # assumes covariate effects are last p columns of coefs
-  #   matrix(fit$coefs[idx,c(existing_cls,(ncol(fit$coefs)-(p-1)):ncol(fit$coefs))],nrow=g,ncol=k+p)
-  # } else{matrix(fit$coefs[idx,existing_cls],nrow=g,ncol=k)}
-  # pi=fit$pi[existing_cls]
 
   init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,],nrow=sum(idx))}
 
