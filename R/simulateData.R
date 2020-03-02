@@ -1,7 +1,7 @@
 #' Simulate data with gene-wise dispersion parameters
 simulate_counts=function(K,B,n,g,
                          cls,SF,
-                         beta,phi,LFCg_mat,#noise_mat,
+                         beta,phi,LFCg_mat,
                          batch,LFCb,sigma_b,sigma_g,DEb_ID,disp){     # batch of 0: no batch effect, batch of 1: yes effect
   # center batch at 0: lower batch gets downregulated, higher batch gets upregulated
   # if B=1, batch_eff = 0 with some noise by sigma_b
@@ -103,19 +103,27 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
     if(length(phi0)==1){
       phi=rep(phi0,g)
     } else if(length(phi) != g){
-      stop("phi must be either length 1 or g")
+      stop("phi must be length 1 or g")
+    } else{
+      phi=phi0     # specifying specific gene-level disp's for all genes
     }
   } else if(disp=="cluster"){
     if(length(phi0)==K){
       phi=matrix(phi0,nrow=g,ncol=K,byrow=TRUE)
     } else if(length(phi0)!=(g*K)){
       stop("phi must be gxK matrix")
+    } else{
+      phi=phi0     # specifying specific cluster-level disps for all genes/clusters
     }
   } else{
     stop("specify 'gene' or 'cluster' for disp")
   }
 
-  beta=matrix(beta0,nrow=g,ncol=K)
+  if(length(beta0) %in% c(1,g)){
+    beta=matrix(beta0,nrow=g,ncol=K)    # if beta0 is length g, then will repeat for each cluster
+  } else{
+    stop("beta0 must be length 1 (common baseline) or g (gene-level baselines)")
+  }
   all_sim.dats = list()
   for(i in 1:nsims){
 
@@ -128,6 +136,7 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
     }
 
     if(is.null(SF)){
+      # SF's are drawn from N(1,0.25), truncated at (0.25, 2.00)
       SF=rnorm(n,1,0.25)
       SF[SF<0.25]=0.25
       SF[SF>2]=2
@@ -138,20 +147,19 @@ simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
     } else if(length(SF)!=n){
       stop("Custom size factors must be of length n")
     } else{
+      # if custom SF's input, then SF_pred are sampled from the custom SF's randomly
       SF_pred=sample(SF,n_pred,replace=T)
     }
 
     cls=sample(1:K,n,replace=T,prob=pK)
     batch=sample(1:B,n,replace=T,prob=pB)-1
 
-    DEg_ID=rep(F,g)                                 # DEg across cls: just first g*pDEg genes
+    DEg_ID=rep(F,g)                                 # DEg across cls: first g*pDEg genes
     DEg_ID[1:floor(pDEg*g)]=T
     DEb_ID=rep(F,g)                                 # select DEb across batch genes randomly
     DEb_ID[sample(1:g,floor(pDEb*g),replace=F)]=T
 
     LFCg_mat = matrix(0,nrow=g,ncol=K)
-    #noise_mat = matrix(rnorm(g,0,sigma_g),nrow=g,ncol=K)
-
 
     for(j in 1:floor(pDEg*g)){
       signLFC=(j<floor(pDEg*g/2))*2-1           # +1 for j in 1:(DEgenes/2), -1 for rest
