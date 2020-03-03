@@ -64,6 +64,7 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
 
     if(file.exists(fname)){
       load(fname)
+      warning("Previous initialization results found in directory. Loading these initializations. Note: an error may occur if previous results correspond to a different dataset!")
       list_res[[c]]=res
     } else{
       res=FSCseq::FSCseq(ncores=ncores,X=X, y=cts[idx,], k=K_search[c],
