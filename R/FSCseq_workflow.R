@@ -28,16 +28,16 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
                            OS_save=TRUE,trace=F,trace.prefix="",nMB=5,dir_name="Saved_Results"){
 
   ifelse(!dir.exists(dir_name),
-         dir.create(dir_name),
+         dir.create(dir_name,recursive=T),
          FALSE)
   if(trace){ifelse(!dir.exists(sprintf("%s/Diagnostics",dir_name)),
-         dir.create(sprintf("%s/Diagnostics",dir_name)),
+         dir.create(sprintf("%s/Diagnostics",dir_name),recursive=T),
          FALSE)}
   # input true_cls or true_disc for clustering/FS diagnostics tracking
 
   if(!trace){trace.file=NULL}
 
-  if(is.null(batch)){warning("No input batch. Assuming all samples from same batch\n");batch=rep(1,ncol(cts))}
+  if(is.null(batch)){cat("No input batch. All samples from the same batch\n");batch=rep(1,ncol(cts))}
   if(length(unique(batch))==1){
     X=NULL
   } else{
@@ -46,7 +46,6 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
       X[,i] = (batch==unique(batch)[i])^2    # cell-means coding of batch
     }
   }
-  mb_size = floor(nrow(cts)/nMB)
 
   processed.cts=FSCseq::processData(cts,med_thresh=med_filt,MAD_quant_thresh=MAD_filt)
   norm_y=processed.cts$norm_y
@@ -54,6 +53,8 @@ FSCseq_workflow = function(cts,ncores=1,batch=NULL,true_cls=NULL,true_disc=NULL,
   idx=processed.cts$idx
   processed.dat=processed.cts[-1] # remove dds object (large)
   rm("processed.cts")
+
+  mb_size = floor(sum(idx)/nMB)
 
   # warm starts for each value of K
   list_res=list()
