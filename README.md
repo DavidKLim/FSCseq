@@ -118,7 +118,7 @@ cts <- cts[!duplicated(cts[,1:ncol(cts)]),]
 anno <- colData(data)@listData
 ```
 
-Optionally, you can to pre-filter out genes with low FPKM values.
+Optionally, you may want to pre-filter out genes with low FPKM values.
 Subtype information for the TCGA BRCA dataset used in our paper can be
 obtained using the `TCGAquery_subtype()` function, and used as the true
 cluster labels. These true cluster labels are optional, but useful to
@@ -154,8 +154,12 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c
 #> converting counts to integer mode
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 420.202751159668"
+#> [1] "time elapsed: 423.354813814163"
 ```
+
+Note that we did not simulate batch in this case. If batch was
+simulated, an additional argument `batch=...` can be input to adjust for
+these batch effects
 
 ### Step 3: Summarizing and visualizing results
 
