@@ -26,40 +26,91 @@
 #' @importFrom matrixStats rowMedians
 #'
 #' @export
-processData = function(y,geoMeans=NULL,estimateSFtype="ratio",
-                       med_filt=TRUE, MAD_filt=TRUE,
-                       med_thresh=100, MAD_quant_thresh=50){
-  n=ncol(y)
-  g=nrow(y)
-  coldata<-data.frame(matrix(rep(1,n),nrow=n))
-  rownames(coldata)<-colnames(y)
-  colnames(coldata)<-"int_only"
-  dds<-DESeq2::DESeqDataSetFromMatrix(countData = y,
-                                      colData = coldata,
-                                      design = ~ 1)
+processData = function(y, geoMeans = NULL, estimateSFtype = "ratio",
+                       med_filt = TRUE, MAD_filt = TRUE,
+                       med_thresh = 100, MAD_quant_thresh = 50) {
+  n = ncol(y)
+  g = nrow(y)
+  coldata <- data.frame(matrix(rep(1, n), nrow = n))
+  rownames(coldata) <- colnames(y)
+  colnames(coldata) <- "int_only"
+  dds <- DESeq2::DESeqDataSetFromMatrix(countData = y,
+                                        colData = coldata,
+                                        design = ~ 1)
 
-  if(is.null(geoMeans)){
-    dds = DESeq2::estimateSizeFactors(dds,type=estimateSFtype)
+  if (is.null(geoMeans)) {
+    dds = DESeq2::estimateSizeFactors(dds, type = estimateSFtype)
   } else{
-    dds = DESeq2::estimateSizeFactors(dds,type=estimateSFtype,geoMeans=geoMeans)
+    dds = DESeq2::estimateSizeFactors(dds, type = estimateSFtype, geoMeans =
+                                        geoMeans)
   }
 
 
-  size_factors<-DESeq2::sizeFactors(dds)
-  norm_y<-DESeq2::counts(dds,normalized=TRUE)
+  size_factors <- DESeq2::sizeFactors(dds)
+  norm_y <- DESeq2::counts(dds, normalized = TRUE)
 
-  idx=rep(T,g)
-  row_medians=matrixStats::rowMedians(norm_y)
-  row_MADs=apply(log(norm_y+0.1),1,mad)
+  idx = rep(T, g)
+  row_medians = matrixStats::rowMedians(norm_y)
+  row_MADs = apply(log(norm_y + 0.1), 1, mad)
 
-  if(med_filt){
-    idx = ( idx & (row_medians >= med_thresh) )
+  if (med_filt) {
+    idx = (idx & (row_medians >= med_thresh))
   }
-  if(MAD_filt){
-    idx = ( idx & (row_MADs >= quantile(row_MADs,MAD_quant_thresh/100)) )
+  if (MAD_filt) {
+    idx = (idx & (row_MADs >= quantile(row_MADs, MAD_quant_thresh / 100)))
   }
-  results=list(dds=dds, size_factors=size_factors,norm_y=norm_y,
-               idx=idx, row_medians=row_medians, row_MADs=row_MADs)
+  results = list(
+    dds = dds,
+    size_factors = size_factors,
+    norm_y = norm_y,
+    idx = idx,
+    row_medians = row_medians,
+    row_MADs = row_MADs
+  )
 
   return(results)
+}
+
+
+
+#' Summarize FSCseq clustering results
+#'
+#' Outputs relevant summary of FSCseq clustering results
+#'
+#' @param res Output of FSCseq clustering analysis
+#'
+#' @return Summary of FSCseq clustering results: #clusters (K), clusters,
+#' ARI (if true_cls input), TPR and FPR (vs. true cluster-discriminatory genes if true_disc input)
+#'
+#' @importFrom mclust adjustedRandIndex
+#'
+#' @export
+summary = function(res, true_cls = NULL, true_disc = NULL) {
+  K=res$K; cls=res$cls
+  cat(paste("K:", K,"\n"))
+
+  # if true_cls input, compare cls to true_cls:
+  ARI = NA
+  if(!is.null(true_cls)){
+    cat(paste( "True K:", length(unique(true_cls)),"\n" ))
+    cat(paste( "ARI:", adjustedRandIndex(true_cls,cls),"\n" ))
+    print(table(true_cls, cls))
+  }
+
+  cat("-----------------\n")
+  # if true_disc input, compare disc to true_disc
+  disc = res$discriminatory
+
+  TPR = NA; FPR = NA
+  if(!is.null(true_disc)){
+    cat(paste( "TPR:", sum(true_disc & disc)/sum(true_disc), "\n" ))
+    cat(paste( "FPR:", sum(!true_disc & disc)/sum(!true_disc), "\n" ))
+    cat("-----------------\n")
+  }
+  cat("cls (first 5 samples):\n")
+  print(head(cls, n=5))
+  cat("disc (first 5 genes):\n")
+  print(head(disc, n=5))
+  return(list(K=K, cls=cls, disc=disc,
+              ARI=ARI, TPR=TPR, FPR=FPR))
 }

@@ -34,57 +34,55 @@ Read count expression will be simulated from a finite mixture of
 negative binomials. For ease of use, simulated data will be saved
 automatically in the `save_dir` directory, and will be saved in object
 `sim.dat`. In this example, one dataset is simulated (`nsims`) with
-10000 genes (`G`) and 50 samples (`n`) from 1 batch (`B`) with 2
-underlying clusters (`K`), baseline
+10000 genes (`G`, default) and 50 samples (`n`) from 1 batch (`B`,
+default) with 2 underlying clusters (`K`), baseline
 ![\\log\_2](https://latex.codecogs.com/png.latex?%5Clog_2 "\\log_2")
 mean of 12 (`beta0`), and overdispersion of 0.35 (`phi`).
 
 ``` r
 B=1; g=10000; K=2; n=50; LFCg=1; pDEg=0.05; beta0=12; phi0=0.35
-set.seed(999)
+set.seed(9)
 sim.dat = FSCseq::simulateData(B=B, g=g, K=K, n=n, LFCg=LFCg, pDEg=pDEg,
-             beta0=beta0, phi0=phi0, nsims=1, save_file=FALSE)[[1]]
+             beta0=beta0, phi0=phi0, nsims=1, save_file=FALSE)
 # for save_file=TRUE, can input custom save_dir and save_prefix for parallelization of downstream analyses
 ```
 
 The `simulateData` function outputs a list of length `nsims` with a
-`sim.dat` list object for each simulation. In the above example, we
-subset to just the 1st element (since `nsims=1`) of the output list, but
-for `nsims>1`, other simulated datasets can be accessed by changing the
-index value. The contents of each `sim.dat` object can be accessed, and
-counts and true cluster labels can be extracted as follows:
+`sim.dat` list object for each simulation. The contents of `sim.dat` can
+be examined as follows, where each element of the list corresponds to a
+distinct simulated dataset:
 
 ``` r
 str(sim.dat)
-#> List of 9
-#>  $ cts       : num [1:10000, 1:50] 7494 19478 3728 3721 10575 ...
-#>  $ cts_pred  : num [1:10000, 1:25] 3436 12903 2449 4670 2733 ...
-#>  $ cls       : int [1:50] 1 1 1 1 2 1 1 2 2 1 ...
-#>  $ cls_pred  : int [1:25] 1 2 1 1 2 2 2 1 2 2 ...
-#>  $ batch     : num [1:50] 0 0 0 0 0 0 0 0 0 0 ...
-#>  $ SF        : num [1:50] 0.93 0.672 1.199 1.068 0.931 ...
-#>  $ SF_pred   : num [1:25] 0.971 0.839 1.436 1.092 0.983 ...
-#>  $ DEg_ID    : logi [1:10000] TRUE TRUE TRUE TRUE TRUE TRUE ...
-#>  $ sim_params:List of 18
-#>   ..$ K       : num 2
-#>   ..$ B       : num 1
-#>   ..$ g       : num 10000
-#>   ..$ n       : num 50
-#>   ..$ n_pred  : num 25
-#>   ..$ pK      : num [1:2] 0.5 0.5
-#>   ..$ pB      : num 1
-#>   ..$ LFCg    : num 1
-#>   ..$ pDEg    : num 0.05
-#>   ..$ sigma_g : num 0.1
-#>   ..$ LFCb    : num 0
-#>   ..$ pDEb    : num 0.5
-#>   ..$ sigma_b : num 0
-#>   ..$ beta    : num [1:10000, 1:2] 12 12 12 12 12 12 12 12 12 12 ...
-#>   ..$ phi     : num [1:10000] 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 ...
-#>   ..$ disp    : chr "gene"
-#>   ..$ LFCg_mat: num [1:10000, 1:2] 1 1 0 1 1 1 1 1 1 1 ...
-#>   ..$ DEb_ID  : logi [1:10000] FALSE TRUE FALSE TRUE TRUE TRUE ...
-cts=sim.dat$cts; true_cls=sim.dat$cls
+#> List of 1
+#>  $ :List of 9
+#>   ..$ cts       : num [1:10000, 1:50] 1145 1203 2810 7645 1867 ...
+#>   ..$ cts_pred  : num [1:10000, 1:25] 4217 5317 3312 7618 4077 ...
+#>   ..$ cls       : int [1:50] 2 1 1 1 1 1 2 2 2 2 ...
+#>   ..$ cls_pred  : int [1:25] 2 2 1 2 2 1 2 2 2 1 ...
+#>   ..$ batch     : num [1:50] 0 0 0 0 0 0 0 0 0 0 ...
+#>   ..$ SF        : num [1:50] 0.808 0.796 0.965 0.931 1.109 ...
+#>   ..$ SF_pred   : num [1:25] 1.438 0.863 0.785 1.012 0.95 ...
+#>   ..$ DEg_ID    : logi [1:10000] TRUE TRUE TRUE TRUE TRUE TRUE ...
+#>   ..$ sim_params:List of 18
+#>   .. ..$ K       : num 2
+#>   .. ..$ B       : num 1
+#>   .. ..$ g       : num 10000
+#>   .. ..$ n       : num 50
+#>   .. ..$ n_pred  : num 25
+#>   .. ..$ pK      : num [1:2] 0.5 0.5
+#>   .. ..$ pB      : num 1
+#>   .. ..$ LFCg    : num 1
+#>   .. ..$ pDEg    : num 0.05
+#>   .. ..$ sigma_g : num 0.1
+#>   .. ..$ LFCb    : num 0
+#>   .. ..$ pDEb    : num 0.5
+#>   .. ..$ sigma_b : num 0
+#>   .. ..$ beta    : num [1:10000, 1:2] 12 12 12 12 12 12 12 12 12 12 ...
+#>   .. ..$ phi     : num [1:10000] 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 ...
+#>   .. ..$ disp    : chr "gene"
+#>   .. ..$ LFCg_mat: num [1:10000, 1:2] 1 1 1 0 1 1 1 1 1 0 ...
+#>   .. ..$ DEb_ID  : logi [1:10000] TRUE TRUE TRUE FALSE TRUE FALSE ...
 ```
 
 ### Step 1b: Analyzing custom data
@@ -128,8 +126,8 @@ track diagnostics in FSCseq:
 
 ``` r
 BRCA_tab = TCGAquery_subtype("BRCA")
-match_ids = match(anno$patient,BRCA_tab$patient) # match patients
-anno$subtypes=BRCA_tab$BRCA_Subtype_PAM50[match_ids]
+match_ids = match(anno$patient, BRCA_tab$patient) # match patients
+anno$subtypes = BRCA_tab$BRCA_Subtype_PAM50[match_ids]
 
 true_cls = as.numeric(as.factor(anno$subtypes))
 ```
@@ -143,73 +141,102 @@ analysis can be done on your own data using the same steps.
 
 ### Step 2: Performing clustering and feature selection
 
-Input the simulated (or custom) `cts` matrix into `FSCseq_workflow`.
-Default search grids for tuning parameters are preset. For brevity of
-illustration, we go through FSCseq analysis on the previously simulated
-dataset with a much smaller grid of values of tuning parameters (takes
-about 7-8 minutes). Note that `dir_name` should be unique, in order to
-avoid utilizing saved results from a previously analyzed dataset:
+For brevity of illustration, we go through FSCseq analysis on the
+previously simulated dataset with a much smaller grid of values of
+tuning parameters. First, we subset the simulated dataset. In this
+example, we subset to just the 1st element of `sim.dat` since `nsims=1`,
+but for `nsims>1`, other simulated datasets can be accessed by changing
+the index value. The contents of each `sim.dat` object can be accessed,
+and counts and true cluster labels can be extracted as follows:
 
 ``` r
-cts=sim.dat$cts; true_cls=sim.dat$cls
+simdat = sim.dat[[1]]
+cts=simdat$cts; true_cls=simdat$cls
+```
+
+Then, we run the FSCseq workflow. To do this, we input the simulated (or
+custom) `cts` matrix into `FSCseq_workflow`. Default search grids for
+tuning parameters are preset. Note that `dir_name` should be unique, in
+order to avoid utilizing saved results from a previously analyzed
+dataset. The workflow on this example dataset took about 5 minutes to
+complete:
+
+``` r
 t0 = as.numeric(Sys.time())
-FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,K_search=c(2:3),lambda_search=c(1.0, 1.5),
-                                         alpha_search=c(0.1, 0.2),dir_name="~/test/Saved_Results")
-#> Warning in FSCseq::FSCseq_workflow(cts = cts, K_search = c(2:3), lambda_search = c(1, : No input batch. Assuming all samples from same batch
+FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,
+                                         K_search=c(2:3),
+                                         lambda_search=c(1.0, 1.5),
+                                         alpha_search=c(0.1, 0.2), dir_name="~/test/Saved_Results")
+#> No input batch. All samples from the same batch
+#> Computing size factors...
 #> converting counts to integer mode
+#> Initializing warm starts...
+#> K = 2 ... done.
+#> K = 3 ... done.
+#> Tuning parameters...
+#> K = 2 ... done.
+#> K = 3 ... done.
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 460.350342035294"
+#> [1] "time elapsed: 279.909837961197"
+res = FSCseq_results$results
 ```
 
 Note that we did not simulate batch in this case. If batch was
-simulated, an additional argument `batch=...` can be input to adjust for
-these batch effects
+simulated, an additional argument `batch = ...` can be input to adjust
+for these batch effects. Additionally, a custom design matrix `X = ...`
+can also be specified. By default, `batch` is assumed to not be included
+in the `X` design matrix. If both `batch` and `X` are specified, then
+the design matrix will be augmented with batch as an additional
+covariate.
 
 ### Step 3: Summarizing and visualizing results
 
 We can now summarize our clustering results. `FSCseq_workflow` outputs
 the processed data after pre-filtering and normalizing for differences
-in sequencing depth, as well as the results from FSCseq analysis. Store
-included genes in `idx` to compare FSCseq results `res` with simulated
-data:
+in sequencing depth, as well as the results from FSCseq analysis. Subset
+true cluster-discriminatory genes (as simulated) to those genes in
+`idx`, which were included in analysis after pre-filtering. This allows
+for comparison between true and derived cluster-discriminatory genes.
 
 ``` r
-res = FSCseq_results$results; processed.dat = FSCseq_results$processed.dat
-idx = processed.dat$idx  # IDs of genes that are included in analysis after pre-filtering
-library(mclust)
-#> Package 'mclust' version 5.4.5
-#> Type 'citation("mclust")' for citing this R package in publications.
-print(paste("True K:",K,"Optimal K:",length(unique(res$cls))))
-#> [1] "True K: 2 Optimal K: 2"
-print(paste("ARI:",adjustedRandIndex(true_cls,res$cls)))
-#> [1] "ARI: 1"
-table(true_cls,res$cls)
-#>         
+processed.dat = FSCseq_results$processed.dat
+idx = processed.dat$idx  # IDs of genes that were included in clustering analysis after pre-filtering
+true_disc = simdat$DEg_ID[idx]
+
+summ = summary(res, true_cls, true_disc)  # true_cls and true_disc optional
+#> K: 2 
+#> True K: 2 
+#> ARI: 1 
+#>         cls
 #> true_cls  1  2
-#>        1 23  0
-#>        2  0 27
+#>        1  0 23
+#>        2 27  0
+#> -----------------
+#> TPR: 0.934383202099738 
+#> FPR: 0.0138558129465252 
+#> -----------------
+#> cls (first 5 samples):
+#> [1] 1 2 2 2 2
+#> disc (first 5 genes):
+#> [1] TRUE TRUE TRUE TRUE TRUE
 ```
 
-We can also show the true positive rate (TPR) and false positive rate
-(FPR) of feature selection in discovering cluster-discriminatory genes:
+The `true_cls` and `true_disc` arguments are optional for the
+`summary()` function. Inputting `true_cls` additionally outputs the ARI
+and a two-way table comparing the true and derived cluster labels.
+Inputting `true_disc` additionally outputs the true positive rate (TPR)
+and false positive rate (FPR) of discovering true cluster-discriminatory
+genes.
 
-``` r
-true_disc = sim.dat$DEg_ID[idx];
-FSC_disc = res$discriminatory
-
-print(paste("TPR: ",sum(true_disc & FSC_disc)/sum(true_disc)))
-#> [1] "TPR:  0.746231155778894"
-print(paste("FPR: ",sum(!true_disc & FSC_disc)/sum(!true_disc)))
-#> [1] "FPR:  0.00217296827466319"
-```
-
-We can visualize the expression patterns by plotting a heatmap, with
-column annotations denoting cluster membership (red/black)
+We can additionally visualize the expression patterns by plotting a
+heatmap, with column annotations denoting cluster membership (red/black)
 
 ``` r
 norm_y = processed.dat$norm_y
-heatmap(log(norm_y[sim.dat$DEg_ID,]+0.1),scale="row",ColSideColors = as.character(res$cls),xlab="Samples",ylab="Genes",main="Heatmap of cluster-discriminatory genes")
+heatmap(log(norm_y[simdat$DEg_ID,]+0.1),
+        scale="row",ColSideColors = as.character(res$cls),
+        xlab="Samples",ylab="Genes",main="Heatmap of cluster-discriminatory genes")
 ```
 
 <img src="man/figures/README-FSCseqHM-1.png" width="100%" />
@@ -226,18 +253,24 @@ Input `idx` to narrow down list of genes to those included in FSCseq
 analyses.
 
 ``` r
-cts_pred = sim.dat$cts_pred
-true_cls_pred = sim.dat$cls_pred
-fit_pred = FSCseq::FSCseq_predict_workflow(fit=res$fit,cts=cts,cts_pred=cts_pred,idx=idx)
+cts_pred = simdat$cts_pred
+true_cls_pred = simdat$cls_pred
+fit_pred = FSCseq::FSCseq_predict_workflow(fit = res$fit,
+                                           cts = cts,
+                                           cts_pred = cts_pred,
+                                           idx = idx)
+#> Computing size factors...
 #> converting counts to integer mode
-```
-
-``` r
+#> Computing predictive posterior probabilities...
+#> No covariates specified. Predicting on cluster-specific intercept-only model.
 res_pred = fit_pred$results
-print(paste("pARI: ",adjustedRandIndex(true_cls_pred,res_pred$clusters)))
+library(mclust)
+#> Package 'mclust' version 5.4.5
+#> Type 'citation("mclust")' for citing this R package in publications.
+print(paste( "pARI: ", adjustedRandIndex(true_cls_pred, res_pred$clusters) ))
 #> [1] "pARI:  1"
 ```
 
-This anaysis can be easily generalized to real data by replacing
-`cts_pred` with a separate test dataset, after fitting the FSCseq model
-on the training dataset.
+This analysis can be generalized to real data by replacing `cts_pred`
+with a separate test dataset, after fitting the FSCseq model on the
+training dataset.

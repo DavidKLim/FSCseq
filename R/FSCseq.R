@@ -28,23 +28,31 @@ logsumexpc=function(v){
 
 #' Theta estimation with penalty
 #'
-#' theta.ml() with small ridge penalty to stabilize estimates
+#' theta.ml() with small ridge penalty to stabilize estimates, and using more efficient
+#' digamma and trigamma functions.
 #'
 #' @param v a vector or matrix of numbers
 #'
 #' @return theta
 #'
+#' @importFrom Rfast Digamma Trigamma
 #'
 #' @export
-theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine$double.eps^0.25,
+theta.ml2=function (y, mu, n = sum(weights), weights, t0=0, limit = 10, eps = .Machine$double.eps^0.25,
                     trace = FALSE)
 {
   lambda=1E-25
-  score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (digamma(th +
-                                                                      y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
+  # score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (digamma(th +
+  #                                                                     y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
+  #                                                                                                                        th)/(mu + th))) + th*lambda}
+  # info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
+  #                                                                      y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
+  #                                                                                                                           th)^2)) + lambda}
+  score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (Rfast::Digamma(th +
+                                                                      y) - Rfast::Digamma(th) + log(th) + 1 - log(th + mu) - (y +
                                                                                                                          th)/(mu + th))) + th*lambda}
-  info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
-                                                                       y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
+  info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-Rfast::Trigamma(th +
+                                                                       y) + Rfast::Trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
                                                                                                                             th)^2)) + lambda}
   if (inherits(y, "lm")) {
     mu <- y$fitted.values
@@ -54,7 +62,7 @@ theta.ml2=function (y, mu, n = sum(weights), weights, limit = 10, eps = .Machine
   }
   if (missing(weights))
     weights <- rep(1, length(y))
-  t0 <- n/sum(weights * (y/mu - 1)^2)
+  if(t0==0){t0 <- n/sum(weights * (y/mu - 1)^2)}
   it <- 0
   del <- 1
   if (trace)
@@ -218,9 +226,10 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
 #' @importFrom MASS theta.mm
 #'
 #' @export
-phi.ml=function(y,mu,dfr,weights,limit,trace){
+phi.ml=function(y,mu,dfr,weights,t0,limit,trace){
   theta_g = NULL
-  try(theta_g <- theta.ml2(y=y, mu=mu, weights=weights, limit=limit, trace=trace),silent=TRUE)
+  #try(theta_g <- theta_ml_g(y=y, mu=mu, wts=weights, t0=t0, limit=limit, trace=(trace)^2),silent=TRUE)
+  try(theta_g <- theta.ml2(y=y, mu=mu, weights=weights, limit=limit, t0=t0, trace=trace),silent=TRUE)
 
   if(is.null(theta_g)){
     try(theta_g <- MASS::theta.mm(y=y, mu=mu, dfr=dfr, weights=weights, limit=limit))
@@ -271,6 +280,7 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
                mu=mu[ids],
                dfr=sum(ids)-1,
                weights=c(t(wts))[ids],
+               t0=0,
                limit=25,trace=F)
 
   results=list(coefs_j=coefs_j,
@@ -308,6 +318,7 @@ glm.init_par=function(j){
                mu=mu[ids],
                dfr=sum(ids)-1,
                weights=c(t(wts))[ids],
+               t0=1/phi[j,1],
                limit=25,trace=F)
 
   results=list(coefs_j=coefs_j,
@@ -346,6 +357,7 @@ M_step_par = function(j){
                       mu=mu[ids],
                       dfr=sum(ids)-1,
                       weights=c(t(wts))[ids],
+                      t0=1/phi[j,1],
                       limit=25,trace=F)
     res$phi_j = rep(phi_g_temp,k)
   } else{ res$phi_j=phi[j,]}
@@ -388,6 +400,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
                       mu=mu[ids],
                       dfr=sum(ids)-1,
                       weights=c(t(wts))[ids],
+                      t0=1/phi[j,1],
                       limit=25,trace=F)
     res$phi_j = rep(phi_g_temp,k)
   } else{res$phi_j = phi[j,]}
@@ -753,6 +766,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' norm_y: input norm_y,
 #' DNC: 1 if EM didn't converge in maxits and 0 if it did,
 #' LFCs: matrix of dimension g by maxit_EM of LFCs (max-min)/(k-1)
+#' n_its: number of iterations of the EM/CEM to convergence
 #'
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
@@ -848,10 +862,7 @@ EM_run <- function(ncores,X=NA, y, k,
   diff_phi=matrix(0,nrow=maxit_EM,ncol=g)
 
   est_phi=rep(1,g)                          # 1 for true, 0 for false
-  est_covar = if(covars){rep(1,g)
-  } else{
-    rep(0,g)
-  }
+  est_covar = ifelse(covars,rep(1,g),rep(0,g))
 
   # if PP_filt is not set to NULL --> keep only obs/cl in M step > PP_filt threshold
   if(!is.null(PP_filt)){
@@ -928,10 +939,10 @@ EM_run <- function(ncores,X=NA, y, k,
           }
         }
       }
+      pi=rowMeans(wts)
       for(j in 1:g){
         theta<-matrix(rep(0,times=k^2),nrow=k)
         for(c in 1:k){
-          pi[c]=mean(wts[c,])
           for(cc in 1:k){
             # run just once in R, for initialization
             if(cc==c){
@@ -941,6 +952,8 @@ EM_run <- function(ncores,X=NA, y, k,
             }else{theta[cc,c]=-theta[c,cc]}
           }
         }
+        ### theta[lower.tri(theta)] = -t(theta)[lower.tri(theta)] # if upper tri matrix created --> fill in lower-tri mat
+
         theta_list[[j]] <- theta
         #disc_ids[j]=any(theta_list[[j]]!=0)
       }
@@ -960,18 +973,20 @@ EM_run <- function(ncores,X=NA, y, k,
       }
     }
 
-    # update on pi_hat, and UB & LB on pi
-    for(c in 1:k){
-      pi[c]=mean(wts[c,])
-      if(pi[c]<1E-6){
-        if(trace){warning(paste("cluster proportion", c, "close to 0"))}
-        pi[c]=1E-6
-      } # lowerbound for pi
-      if(pi[c]>(1-1E-6)){
-        if(trace){warning(paste("cluster proportion", c, "close to 1"))}
-        pi[c]=(1-1E-6)
-      } # upperbound for pi
-    }
+    # # update on pi_hat, and UB & LB on pi
+    # for(c in 1:k){
+    #   pi[c]=mean(wts[c,])
+    #   if(pi[c]<1E-6){
+    #     if(trace){warning(paste("cluster proportion", c, "close to 0"))}
+    #     pi[c]=1E-6
+    #   } # lowerbound for pi
+    #   if(pi[c]>(1-1E-6)){
+    #     if(trace){warning(paste("cluster proportion", c, "close to 1"))}
+    #     pi[c]=(1-1E-6)
+    #   } # upperbound for pi
+    # }
+
+    pi=rowMeans(wts)
 
     # M step
     Mstart=as.numeric(Sys.time())
@@ -1023,7 +1038,9 @@ EM_run <- function(ncores,X=NA, y, k,
                             mu=mu[ids],
                             dfr=sum(ids)-1,
                             weights=c(t(wts))[ids],
-                            limit=25,trace=F)
+                            t0=1/phi[j,1],
+                            limit=25,
+                            trace=F)
           par_X[[j]]$phi_j = rep(phi_g_temp,k)
         } else{par_X[[j]]$phi_j = phi[j,]}
       }
@@ -1096,20 +1113,38 @@ EM_run <- function(ncores,X=NA, y, k,
     prev_coefs = coefs    # store prev coefs for comparison in MSE_coefs next iteration
 
     # nb log(f_k(y_i))
-    l<-matrix(rep(0,times=k*n),nrow=k)
+    l<-matrix(rep(0,times=k*n),nrow=k,ncol=n)
+    # if(covars){
+    #   covar_coefs = matrix(coefs[,(k+1):(k+p)],ncol=p)
+    #   cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
+    # } else {cov_eff=matrix(0,nrow=n,ncol=g)}
+    # for(i in 1:n){
+    #   for(c in 1:k){
+    #     # All genes. nondisc genes should be cancelled out in E step calculation
+    #     # if(cl_phi==1){
+    #     #   l[c,i]<-sum(dnbinom(y[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
+    #     # } else if(cl_phi==0){
+    #     #   l[c,i]<-sum(dnbinom(y[,i],size=1/phi_g,mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+    #     # }
+    #     ## phi[j,] = rep(phi_g[j],k) ##
+    #     l[c,i]<-sum(dnbinom(y[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+    #   }
+    # }
+
     if(covars){
       covar_coefs = matrix(coefs[,(k+1):(k+p)],ncol=p)
-      cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
-    } else {cov_eff=matrix(0,nrow=n,ncol=g)}
-    for(i in 1:n){
-      for(c in 1:k){
-        # All genes. nondisc genes should be cancelled out in E step calculation
-        if(cl_phi==1){
-          l[c,i]<-sum(dnbinom(y[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
-        } else if(cl_phi==0){
-          l[c,i]<-sum(dnbinom(y[,i],size=1/phi_g,mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
-        }
-      }
+      cov_eff = covar_coefs %*% t(X)         # g x n matrix of covariate effects
+    } else {cov_eff=matrix(0,nrow=g,ncol=n)}
+    offset_eff = matrix(offsets,nrow=g,ncol=n,byrow=T)
+    for(c in 1:k){
+      # l[c,] = colSums(
+      #   dnbinom(y, size=1/matrix(phi[,c],nrow=g,ncol=n,byrow=F),
+      #           mu=2^(matrix(coefs[,c],nrow=g,ncol=n,byrow=F) + cov_eff + offset_eff),log=TRUE)
+      #   )
+      l[c,] = colSums(
+        dnbinom(y, size=1/phi[,c],
+                mu=2^(coefs[,c] + cov_eff + offset_eff),log=TRUE)
+      )
     }
 
     # store and check Q function
@@ -1207,11 +1242,13 @@ EM_run <- function(ncores,X=NA, y, k,
   if(lambda==0){
     m=rep(k,g) # if no penalty --> all disc, k params estimated per gene
   } else{
-    m<-rep(0,times=g)
-    for(j in 1:g){
-      m[j]=length(unique(theta_list[[j]][1,]))
-      if(m[j]==1){nondiscriminatory[j]=TRUE}
-    }
+    # m<-rep(0,times=g)
+    # for(j in 1:g){
+    #   m[j]=length(unique(theta_list[[j]][1,]))
+    #   if(m[j]==1){nondiscriminatory[j]=TRUE}
+    # }
+    m = sapply(theta_list, function(x){return(length(unique(x[1,])))})
+    nondiscriminatory[m==1] = TRUE
   }
 
   num_est_coefs = sum(m)
@@ -1278,7 +1315,7 @@ EM_run <- function(ncores,X=NA, y, k,
                lambda=lambda,
                alpha=alpha,
                size_factors=size_factors,#norm_y=norm_y,
-               DNC=DNC,n_its=a#,lower_K=lower_K
+               DNC=DNC,LFCs=LFCs,n_its=a#,lower_K=lower_K
   )
   return(result)
 }

@@ -4,7 +4,7 @@
 \alias{theta.ml2}
 \title{Theta estimation with penalty}
 \usage{
-theta.ml2(y, mu, n = sum(weights), weights, limit = 10,
+theta.ml2(y, mu, n = sum(weights), weights, t0 = 0, limit = 10,
   eps = .Machine$double.eps^0.25, trace = FALSE)
 }
 \arguments{
@@ -14,5 +14,6 @@ theta.ml2(y, mu, n = sum(weights), weights, limit = 10,
 theta
 }
 \description{
-theta.ml() with small ridge penalty to stabilize estimates
+theta.ml() with small ridge penalty to stabilize estimates, and using more efficient
+digamma and trigamma functions.
 }

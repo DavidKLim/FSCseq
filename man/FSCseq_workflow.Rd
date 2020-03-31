@@ -4,12 +4,12 @@
 \alias{FSCseq_workflow}
 \title{Minimal workflow for FSCseq}
 \usage{
-FSCseq_workflow(cts, ncores = 1, batch = NULL, true_cls = NULL,
-  true_disc = NULL, method = "CEM", n_rinits = 1, med_filt = 500,
-  MAD_filt = 50, K_search = c(2:6), lambda_search = seq(0.25, 5,
-  0.25), alpha_search = c(0.01, seq(0.05, 0.5, 0.05)), OS_save = TRUE,
-  trace = F, trace.prefix = "", nMB = 5,
-  dir_name = "Saved_Results")
+FSCseq_workflow(cts, ncores = 1, batch = NULL, X = NULL,
+  true_cls = NULL, true_disc = NULL, method = "CEM", n_rinits = 1,
+  med_filt = 500, MAD_filt = 50, K_search = c(2:6),
+  lambda_search = seq(0.25, 5, 0.25), alpha_search = c(0.01, seq(0.05,
+  0.5, 0.05)), OS_save = TRUE, trace = F, trace.prefix = "",
+  nMB = 5, dir_name = "Saved_Results")
 }
 \arguments{
 \item{cts}{integer matrix, count matrix of dimension g by n. Must be integers (counts)}
@@ -17,6 +17,8 @@ FSCseq_workflow(cts, ncores = 1, batch = NULL, true_cls = NULL,
 \item{ncores}{integer, number of cores (for parallel computing). Default is 1}
 
 \item{batch}{vector of batch, to use as covariates. Default is one batch (NULL).}
+
+\item{X}{optional input design matrix to specify p arbitrary covariates/confounders. Must be matrix of dimension n x p. If batch is additionally input, then X is augmented to incorporate batch as covariates.}
 
 \item{true_cls}{(optional) integer vector of true groups, if available, for diagnostic tracking.}
 

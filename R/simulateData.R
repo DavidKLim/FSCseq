@@ -13,14 +13,19 @@ simulate_counts=function(K,B,n,g,
   if(disp=="gene"){
     phi_mat = matrix(phi,nrow=g,ncol=K)      # construct matrix with same phi values for all cls if g-disp
   }
-  for(j in 1:g){
-    for(i in 1:n){
-      if(DEb_ID[j]){      # if this is a gene that is differentially expressed due to batch
-        cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(1,0,sigma_g) + batch_eff[i]))
-      } else{
-        cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(1,0,sigma_g)))
-      }
-    }
+
+  sigma_mat = matrix(rnorm(n*g,0,sigma_g),nrow=g,ncol=n)
+  # for(j in 1:g){
+  #   for(i in 1:n){
+  #     if(DEb_ID[j]){      # if this is a gene that is differentially expressed due to batch
+  #       cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(0,1,sigma_g) + batch_eff[i]) )
+  #     } else{
+  #       cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(0,1,sigma_g)) )
+  #     }
+  #   }
+  # }
+  for(i in 1:n){
+    cts[,i] = rnbinom( g, size = 1/phi_mat[,cls[i]], mu = SF[i]*2^(b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i]) )
   }
 
   return(cts)

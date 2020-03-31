@@ -61,107 +61,93 @@ double lasso_soft_thresh(double alpha, double lambda){
 }
 
 arma::mat compute_theta(arma::vec beta, double lambda, double alpha, int k){
-	arma::mat theta(k,k);
-	theta.zeros();
-	for(int c=0; c<k; c++){
-		for(int r=0; r<k; r++){
-			if(r==c){
-				theta(r,c) = 0;
-			}else if(r>c){
-				// only calculate for lower triangular part of matrix
-				theta(r,c) = SCAD_soft_thresh(beta(r)-beta(c),lambda,alpha);
-			}else{
-				theta(r,c) = (-1)*theta(c,r);
-			}
-		}
-	}
-	/*for(int c=0; c<k; c++){
-		for(int cc=0; cc<k; cc++){
-			theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
-		}
-	}*/
-	return(theta);
+  arma::mat theta(k,k);
+  theta.zeros();
+  for(int c=0; c<k; c++){
+    for(int r=0; r<k; r++){
+      if(r==c){
+        theta(r,c) = 0;
+      }else if(r>c){
+        // only calculate for lower triangular part of matrix
+        theta(r,c) = SCAD_soft_thresh(beta(r)-beta(c),lambda,alpha);
+      }else{
+        theta(r,c) = (-1)*theta(c,r);
+      }
+    }
+  }
+  /*for(int c=0; c<k; c++){
+   for(int cc=0; cc<k; cc++){
+   theta(c,cc) = SCAD_soft_thresh(beta(c)-beta(cc),lambda,alpha);
+   }
+  }*/
+  return(theta);
 }
 
-/*Rcpp::List score_info(int N, double ph, arma::vec mu, arma::vec y, arma::vec wts){
-    double lambda = 1e-25;
-    double score1 = 0, info1 = 0;
-    double inv_ph = 1/ph + lambda;  // try adding lambda to stabilize (when phi very large)?
-    ph=ph/(1+ph*1e-25);
-    double scorei, infoi;
-
-    int n = y.size();
-
+/*Rcpp::List score_info(int n, double th, arma::vec mu, arma::vec y, arma::vec wts){
+  double epsilon = 1e-25;
+  double score1 = 0, info1 = 0;
+  //double scorei, infoi;
 
 	for(int i=0; i<n; i++){
 
-        scorei = wts(i) * -pow(inv_ph,2) * (R::digamma(inv_ph+y(i)) - R::digamma(inv_ph) + log(inv_ph) - log(inv_ph+mu(i)) + 1 - (y(i)+inv_ph)/(inv_ph+mu(i)));
-        infoi = wts(i) * pow(inv_ph,4) * (R::trigamma(inv_ph) + 2/(inv_ph+mu(i)) - R::trigamma(inv_ph+y(i)) - ph - (y(i)+inv_ph)/pow(inv_ph+mu(i),2)) -
-          2 * pow(inv_ph,3) * scorei;
+        score1 = score1 + wts(i) * (R::digamma(th+y(i)) - R::digamma(th) + log(th) + 1 - log(th+mu(i)) - (y(i)+th)/(th+mu(i)) );
+        info1 = info1 + wts(i) * (R::trigamma(th) - R::trigamma(th+y(i)) - (1/th) + 2/(th+mu(i)) - (y(i)+th)/pow(th+mu(i),2));
 
-        score1 += scorei;
-        info1 += infoi;
+        // score1 += scorei;
+        // info1 += infoi;
 	}
+	double score = score1 + epsilon*th;
+	double info = info1 + epsilon;
 
+	//double score = accu(wts % (  Rcpp::digamma(th + y) - Rcpp::digamma(th) + log(th) + 1 - log(th + mu) - (y + th)/(mu + th) )) + lambda*th;
+	//double info = accu(wts % (  -Rcpp::trigamma(th + y) + Rcpp::trigamma(th) - 1/th + 2/(mu + th) - (y + th)/pow(mu + th,2) )) + lambda;
 
-
-    double score = score1 + 2*lambda*ph;
-    double info = info1 + 2*lambda;
-
-    return Rcpp::List::create(score,info);
+  return Rcpp::List::create(score,info);
 }
 
-double phi_ml_g(arma::vec y, arma::vec mu, arma::vec wts, int limit, double p0, int trace){
-    double eps = 0.0001220703; // from R
-    double N = accu(wts);
-    int n = y.size();
 
-    if(n==1){
-        return(p0=0);
+double theta_ml_g(arma::vec y, arma::vec mu, arma::vec wts, double t0, int limit, int trace){
+  double eps = 0.0001220703; // from R
+  int n = y.size();
+
+  if(t0==0){
+    for(int i=0; i<n; i++){
+      t0 = t0 + wts(i)*pow(y(i)/mu(i)-1,2);
     }
-    if(accu(mu)<1e-13){
-        return(p0=0);
-    }
+    t0 = n/t0;
+  }
 
-    if(p0==0){
-	    for(int i=0; i<n; i++){
-		    p0 += wts(i)*pow(y(i)/mu(i)-1,2);
-	    }
-      p0 = p0/N;
-    }
+  int it=0;
+  double del=1;
 
-    int it=0;
-    double del=1;
-
+  if(trace==1){
+    Rprintf("theta_ml_g: iter %d 'theta = %f' \n",it,t0);
+  }
+  while((it+1) < limit && fabs(del) > eps){
+    it = it + 1;
+    t0 = fabs(t0);
+    Rcpp::List scoreinfo = score_info(n,t0,mu,y,wts);
+    double score=scoreinfo[0], info=scoreinfo[1];
+    del = score/info;
+    t0 = t0 + del;
     if(trace==1){
-        Rprintf("phi_ml: iter %d 'phi = %f' \n",it,p0);
+      Rprintf("score: %f\n",score);
+      Rprintf("info: %f\n",info);
+      Rprintf("theta_ml_g: iter %d 'theta = %f' \n",it,t0);
     }
-    while(it < limit && fabs(del) > eps){
-        it += 1;
-        p0 = fabs(p0);
-        Rcpp::List scoreinfo = score_info(N,p0,mu,y,wts);
-        double score=scoreinfo[0], info=scoreinfo[1];
-        del = score/info;
-        p0 += del;
-        if(trace==1){
-            Rprintf("score: %f\n",score);
-            Rprintf("info: %f\n",info);
-            Rprintf("phi_ml: iter %d 'phi = %f' \n",it,p0);
-        }
+  }
+  if(t0 < 0){
+    t0 = 0;
+    if(trace==1){
+      Rprintf("estimate truncated at zero \n");
     }
+  }
+  if(it == limit && trace==1){
+    Rprintf("iteration limit reached \n");
+  }
+  if(trace==1){Rprintf("theta_ml_g() converged after %d iterations\n",it);}
 
-    if(p0 < 0){
-        p0 = 0;
-        if(trace==1){
-            Rprintf("estimate truncated at zero \n");
-        }
-    }
-    if(it == limit && trace==1){
-        Rprintf("iteration limit reached \n");
-    }
-	if(trace==1){Rprintf("phi_ml() converged after %d iterations\n",it);}
-
-    return(p0);
+  return t0;
 }*/
 
 /*
@@ -195,7 +181,18 @@ public:
   }
 }; */
 
-
+/*Rcpp::NumericVector Cpp_colSums(const Rcpp::NumericMatrix& x) {
+  int nr = x.nrow(), nc = x.ncol();
+  Rcpp::NumericVector ans(nc);
+  for (int j = 0; j < nc; j++) {
+    double sum = 0.0;
+    for (int i = 0; i < nr; i++) {
+      sum += x(i, j);
+    }
+    ans[j] = sum;
+  }
+  return ans;
+}*/
 
 
 /* */
@@ -258,7 +255,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
 	int CDA_iters=0;   // track how many CDA iterations total
 	int IRLS_iters=0;  // track how many IRLS iterations total
-	
+
     /* IRLS */
 	for(int i=0; i<maxit_IRLS; i++){
 
@@ -291,21 +288,21 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 
 		/* Initialize theta matrix for CDA */
 		theta = compute_theta(beta, lambda, alpha, k);
-		
+
 		if(i==TIME_ITER){
 			timer.step("est cl baselines start");
 		}
 
 		/* CDA */
 		int CDA_index=0;
-		int CDA_conv=0;		
+		int CDA_conv=0;
 		arma::vec b0=b;   // previous CDA iteration b=(beta,gamma)
 		arma::vec b1=b;   // current CDA iteration b=(beta,gamma)
-		
+
 		arma::vec b2=b;  // previous IRLS iteration b=(beta,gamma)
-		
+
 		while(CDA_conv == 0){
-			
+
 			/* Update/initialize theta matrix */
 			//for(int c=0; c<k; c++){
 			//	for(int cc=0; cc<k; cc++){
@@ -313,9 +310,9 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			//		/*theta(c,cc) = lasso_soft_thresh(beta(c)-beta(cc),lambda*alpha);*/
 			//	}
 			//}
-			
+
 			theta = compute_theta(beta, lambda, alpha, k);
-			
+
 			/* Update betas (cluster coefs) */
 			for(int c=0; c<k; c++){
 				arma::rowvec c_track_vector(k); c_track_vector.zeros(); c_track_vector(c)=1;
@@ -382,7 +379,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 				//Rprintf("full_resid size:%d",full_resid.size());   // n*k
 
 				/* Update beta */
-				
+
 				// if(optim_method == "direct"){
 				//   beta(c) = ((1-alpha)*lambda*((accu(beta)-beta(c))+accu(theta.row(c))) + accu(vec_W(ids_c) % Xc_ids_c % resid_c)/(N) )  /
 				// 	((1-alpha)*lambda*(k-1) + accu(vec_W(ids_c) % Xc_ids_c)/(N) );
@@ -463,7 +460,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			if(i==TIME_ITER){
 			  timer.step("cov ests");
 			}
-			
+
 		b1=b;
 		// Convergence of CDA
 		if(CDA_index > 0){
@@ -471,7 +468,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 			double diff_b=0;
 			for(int cc=0; cc<(k+p); cc++){
 				diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc)*(k+p));   // theta not part of convergence
-				//diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc)); 
+				//diff_b += fabs(b1(cc)-b0(cc))/fabs(b0(cc));
 			}
 			if(diff_b < CDA_tol){
 				CDA_conv=1;
@@ -488,7 +485,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 		}
 		CDA_index += 1;
 	}
-	
+
 	CDA_iters += CDA_index;  // add #CDA iterations to CDA_iters
 	IRLS_iters += 1;  // add 1 to IRLS_iters
 	// Convergence of IRLS
@@ -505,7 +502,7 @@ Rcpp::List M_step(arma::mat X, arma::vec y_j, int p, int j, int a, int k,
 				diff_gamma += fabs(temp_gamma(i,cc)-temp_gamma(i-1,cc))/fabs(temp_gamma(i-1,cc));
 			}
 		}*/
-		
+
 		// diff_b2 = mean( abs(b1-b0)/abs(b0) ) = mean(abs((b1-b0)/b0))
 		double diff_b2=0;
 		for(int cc=0; cc<(k+p); cc++){

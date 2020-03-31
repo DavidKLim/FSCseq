@@ -85,6 +85,7 @@ size_factors: input size factors,
 norm_y: input norm_y,
 DNC: 1 if EM didn't converge in maxits and 0 if it did,
 LFCs: matrix of dimension g by maxit_EM of LFCs (max-min)/(k-1)
+n_its: number of iterations of the EM/CEM to convergence
 }
 \description{
 Performs clustering, feature selection, and estimation of parameters

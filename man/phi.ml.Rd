@@ -4,7 +4,7 @@
 \alias{phi.ml}
 \title{Estimates dispersion parameter phi}
 \usage{
-phi.ml(y, mu, dfr, weights, limit, trace)
+phi.ml(y, mu, dfr, weights, t0, limit, trace)
 }
 \arguments{
 \item{y}{vector: gene read counts for one fixed gene}
