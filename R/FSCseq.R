@@ -410,10 +410,9 @@ M_step_par2 = function(j, XX, y, p, a, k,
 
 #' Wrapper for main FSCseq function
 #'
-#' Determine and search HC, KM, and random initializations by BIC,
-#' and then full EM/CEM run based on the optimal one.
-#' Calls EM_run function to perform the clustering.
+#' Run main CEM/EM clustering and feature selection algorithm.
 #'
+#' @param ncores integer, number of cores to utilize in parallel computing (default 1)
 #' @param X (optional) design matrix of dimension n by p
 #' @param y count matrix of dimension g by n
 #' @param k integer, number of clusters
@@ -425,11 +424,11 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param true_disc (optional) logical vector of true discriminatory genes, if available, for diagnostic tracking
 #' @param init_parms logical, TRUE: custom parameter initializations, FALSE (default): start from scratch
 #' @param init_coefs matrix of dimension g by k, only if init_parms = TRUE
-#' @param init_phi vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE
-#' @param init_cls (optional) vector of length n, initial clustering. If NA (default), multiple initializations will be searched
+#' @param init_phi vector of dimension g (gene-specific dispersions), only if init_parms = TRUE
+#' @param init_cls (optional) vector of length n, initial clustering.
 #' @param init_wts (optional) matrix of dim k by n to denote initial clustering (allowing partial membership). If both init_cls and init_wts specified, init_wts will be ignored and init_cls used as initial clusters
-#' @param n_rinits integer, number of additional random initializations to be searched (default 50 for EM, 10 for CEM)
-#' @param maxit_inits integer, maximum number of iterations for each initialization search (default 15 for EM, or until temperature anneals down to below 2 for CEM)
+#' @param n_rinits integer, number of additional random initializations to be searched (default 1)
+#' @param maxit_inits integer, maximum number of iterations for each initialization search (default 100)
 #' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS algorithm, in M step (default 50)
 #' @param maxit_CDA integer, maximum number of iterations for CDA loop (default 50)
@@ -439,6 +438,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param method string, either "EM" (default) or "CEM"
 #' @param init_temp numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
+#' @param trace.file (optional) string, file into which interim diagnostics will be printed
 #' @param mb_size minibatch size: # of genes to include per M step iteration
 #' @param PP_filt numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3
 #'
@@ -454,7 +454,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  maxit_inits=if(method=="EM"){15}else if(method=="CEM"){100},  # for CEM, tolerates end temp (Tau) of 2 at end of initialization
                  maxit_EM=100,maxit_IRLS=50,maxit_CDA=50,EM_tol=1E-6,IRLS_tol=1E-4,CDA_tol=1E-4,
                  disp="gene",
-                 method="EM",init_temp=nrow(y),
+                 method="CEM",init_temp=nrow(y),
                  trace=F,trace.file=NULL,
                  mb_size=NULL,PP_filt=1e-3){
   # disp = "gene". (disp="cluster" turned off)
@@ -641,58 +641,6 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
       cat(paste(colnames(all_init_cls)[fit_id],"\n"))
     }
 
-    # if(init_method %in% c("emaEM","BIA")){
-    #   #### Consensus methods ####
-    #   # Create Z matrices and calculate weights
-    #   list_Z = list()
-    #   w_BIC_emaEM = rep(NA,n_inits)
-    #   w_BIC_emaEM_logdenom = logsumexpc(-0.5*init_cls_BIC)
-    #
-    #   max_BIC = max(init_cls_BIC,na.rm=T)
-    #   w_BIC_BIA = rep(NA,n_inits)
-    #   w_BIC_BIA_logdenom = logsumexpc(-0.5*(init_cls_BIC-max_BIC))
-    #   for(m in 1:n_inits){
-    #     list_Z[[m]] = matrix(0,nrow=k,ncol=n)
-    #     for(c in 1:k){
-    #       list_Z[[m]][c,]=(all_init_cls[,m]==c)^2
-    #     }
-    #     # w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*init_cls_BIC[m]-w_BIC_emaEM_logdenom)}
-    #     # w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp(-0.5*(init_cls_BIC[m]-max_BIC)-w_BIC_BIA_logdenom)}
-    #     ##### EXPERIMENT #####
-    #     temp=1     # temp=1 is the same as regular emaEM and BIA
-    #     w_BIC_emaEM[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*init_cls_BIC[m]-logsumexpc((-0.5*init_cls_BIC)*(1/temp)))}
-    #     w_BIC_BIA[m]=if(is.na(init_cls_BIC[m])){0} else{exp((1/temp)*(-0.5)*(init_cls_BIC[m]-max_BIC)-logsumexpc((-0.5*(init_cls_BIC-max_BIC))*(1/temp)))}
-    #   }
-    #
-    #   ## emaEM method (Michael & Melnykov 2016) ##
-    #   if(init_method == "emaEM"){
-    #     # create y_m, A_m for all inits --> A --> HC --> replace init_cls
-    #     A = matrix(0,n,n)
-    #     for(m in 1:n_inits){
-    #       # construct A_m matrix for all inits (y_m omitted to conserve memory. can obtain if you take out w_BIC_emaEM[m] = 1)
-    #       # sum directly here to save memory
-    #       A_m=matrix(NA,n,n)
-    #       for(i in 1:n){
-    #         for(ii in 1:n){
-    #           A_m[i,ii] = w_BIC_emaEM[m]*all(list_Z[[m]][,i] == list_Z[[m]][,ii])^2   # if all wts for sample i and sample ii are the same --> y_m[i,ii]=1. otherwise, 0
-    #         }
-    #       }
-    #       A = A + A_m
-    #     }
-    #     model = hclust(as.dist(A),method="average")
-    #     init_cls <- cutree(hclust(as.dist(A),method="average"),k=k)
-    #   }
-    #
-    #   ## BIA method (Hagan & White 2018) ##
-    #   if(init_method == "BIA"){
-    #     # create Z* = sum(w*Z) --> replace init_wts
-    #     init_wts=matrix(0,nrow=k,ncol=n)
-    #     for(m in 1:n_inits){
-    #       init_wts = init_wts + w_BIC_BIA[m]*list_Z[[m]]
-    #     }
-    #   }
-    # }
-
   }
 
 
@@ -720,6 +668,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' Performs clustering, feature selection, and estimation of parameters
 #' using a finite mixture model of negative binomials
 #'
+#' @param ncores integer, number of cores to utilize in parallel computing (default 1)
 #' @param X design matrix of dimension n by p
 #' @param y count matrix of dimension g by n
 #' @param k integer, number of clusters
@@ -734,9 +683,9 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param init_phi vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE
 #' @param init_cls vector of length n, initial clustering. If NA (default), multiple initializations will be searched. init_wts or init_cls must be initialized
 #' @param init_wts matrix of dim k x n: denotes cluster memberships, but can have partial membership. init_wts or init_cls must be initialized
-#' @param CEM logical, TRUE for EM (default), FALSE for CEM
+#' @param CEM logical, TRUE for CEM (default), FALSE for EM
 #' @param init_Tau numeric, initial temperature for CEM. Default is 1 for EM and g for CEM
-#' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
+#' @param maxit_EM integer, maximum number of iterations for full CEM/EM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS loop, in M step (default 50)
 #' @param maxit_CDA integer, maximum number of iterations for CDA loop (default is 50)
 #' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-6
@@ -744,29 +693,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param CDA_tol numeric, tolerance of convergence for CDA, default is 1E-4
 #' @param disp string, either "gene" (default) or "cluster"
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
+#' @param mb_size minibatch size: # of genes to include per M step iteration
+#' @param PP_filt numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3
 #'
-#' @return FSCseq object: list containing outputs
-#' k: integer order,
-#' pi: numeric vector of mixture proportions,
-#' coefs: numeric matrix of dimensions g by (k+p) cluster log2 baselines and covariate effects,
-#' Q: numeric vector of Q function values across iterations,
-#' BIC: numeric BIC value,
-#' discriminatory: logical vector of length g of whether a gene is discriminatory,
-#' init_clusters: numeric vector of clusters at beginning of EM/CEM algorithm,
-#' init_coefs: matrix of dimension g by k only output if initial parameter estimates were specified,
-#' init_phi: vector of length g or matrix of dimension g by k only output if initial parameter estimates were specified,
-#' final_clusters: vector of length n of resulting clusters,
-#' phi: dispersion estimates,
-#' logL: total log-likelihood,
-#' wts: k by n matrix of E step weights,
-#' time_elap: amount of time elapsed (in seconds),
-#' lambda: input lambda,
-#' alpha: input alpha,
-#' size_factors: input size factors,
-#' norm_y: input norm_y,
-#' DNC: 1 if EM didn't converge in maxits and 0 if it did,
-#' LFCs: matrix of dimension g by maxit_EM of LFCs (max-min)/(k-1)
-#' n_its: number of iterations of the EM/CEM to convergence
+#' @return FSCseq object with clustering results, posterior probabilities of cluster membership, and cluster-discriminatory status of each gene
 #'
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
@@ -781,7 +711,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_coefs=matrix(0,nrow=nrow(y),ncol=k),
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
-                   CEM=F,init_Tau=1,
+                   CEM=T,init_Tau=nrow(y),
                    maxit_EM=100, maxit_IRLS = 50,maxit_CDA=50,EM_tol = 1E-6,IRLS_tol = 1E-4,CDA_tol=1E-4,disp,trace=F,
                    mb_size=NULL,PP_filt){
 

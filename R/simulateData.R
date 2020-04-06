@@ -44,10 +44,10 @@ simulate_counts=function(K,B,n,g,
 #' @param pB vector of length B (optional): proportion of samples in each batch
 #' @param LFCg numeric, LFC for cluster-discriminatory genes
 #' @param pDEg numeric, proportion of genes that are cluster-discriminatory
-#' @param sigma_g numeric, Gaussian noise added from N(0,sigma_g). Default is 0.1
+#' @param sigma_g numeric, Gaussian noise added to each gene/sample N(0,sigma_g). Default is 0.1
 #' @param LFCb numeric, LFC for genes that are differentially expressed across batch. Default is 1.
 #' @param pDEb numeric, proportion of genes that are differentially expressed across batch. Default is 0.5.
-#' @param sigma_b numeric, Gaussian noise added to each batch (turned off, set to 0).
+#' @param sigma_b numeric, batch-specific Gaussian noise (default 0).
 #' @param beta0 numeric, baseline log2 expression for each gene before LFC is applied
 #' @param phi0 numeric, baseline overdispersion for each gene
 #' @param SF vector of length n (optional), custom size factors from DESeq2. If NULL, simulated from N(1,0.25)
@@ -61,10 +61,10 @@ simulate_counts=function(K,B,n,g,
 #' @return if save_file=TRUE, then saved file in '<save_dir>/<save_pref>_sim<1:nsims>_data.RData'. Otherwise, list of length 'nsims', with a sim.dat list object for each simulation
 #'
 #' @export
-simulateData<-function(K, B=1, g=10000, n, pK=NULL, pB=NULL,
-                        LFCg, pDEg, sigma_g=0.1,
+simulateData<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
+                        LFCg=1, pDEg=0.05, sigma_g=0.1,
                         LFCb=1, pDEb=0.5, sigma_b=0,
-                        beta0, phi0, SF=NULL,
+                        beta0=12, phi0=0.35, SF=NULL,
                         nsims=25, disp="gene", n_pred=25, save_file=TRUE, save_dir=NULL, save_pref=NULL){
   if(B==1){LFCb=0}
 

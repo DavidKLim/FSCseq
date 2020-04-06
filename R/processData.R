@@ -11,8 +11,6 @@
 #' @param MAD_filt logical, TRUE to filter low-variable genes via MAD quantile threshold
 #' @param med_thresh numeric, median threshold for pre-filtering low-count genes (default 100, i.e. pre-filters genes with median normalized count below 100)
 #' @param MAD_quant_thresh numeric value between 0 to 100, quantile threshold imposed on MAD values for pre-filtering low-variable genes (default 50, i.e. pre-filters genes below 50th quantile of MAD values)
-#' @param calc_vsd TRUE if want to output count after variance-stabilizing transform
-#' @param calc_rld TRUE if want to output count after rlog transform
 #'
 #' @return list containing the following objects:
 #' dds: DESeq2 output.
@@ -78,6 +76,8 @@ processData = function(y, geoMeans = NULL, estimateSFtype = "ratio",
 #' Outputs relevant summary of FSCseq clustering results
 #'
 #' @param res Output of FSCseq clustering analysis
+#' @param true_cls (optional) vector of true cluster labels to calculate Adjusted Rand Index (ARI)
+#' @param true_disc (optional) TRUE/FALSE vector of true cluster-discriminatory gene status to calculate True Positive Rate (TPR) and False Positive Rate (FPR)
 #'
 #' @return Summary of FSCseq clustering results: #clusters (K), clusters,
 #' ARI (if true_cls input), TPR and FPR (vs. true cluster-discriminatory genes if true_disc input)
@@ -86,7 +86,10 @@ processData = function(y, geoMeans = NULL, estimateSFtype = "ratio",
 #'
 #' @export
 summary = function(res, true_cls = NULL, true_disc = NULL) {
-  K=res$K; cls=res$cls
+  # extract relevant quantities from FSCseq results
+  K=res$K; cls=res$cls; disc = res$discriminatory
+
+  # Output K
   cat(paste("K:", K,"\n"))
 
   # if true_cls input, compare cls to true_cls:
@@ -96,21 +99,22 @@ summary = function(res, true_cls = NULL, true_disc = NULL) {
     cat(paste( "ARI:", adjustedRandIndex(true_cls,cls),"\n" ))
     print(table(true_cls, cls))
   }
-
   cat("-----------------\n")
-  # if true_disc input, compare disc to true_disc
-  disc = res$discriminatory
 
+  # if true_disc input, compare disc to true_disc
   TPR = NA; FPR = NA
   if(!is.null(true_disc)){
     cat(paste( "TPR:", sum(true_disc & disc)/sum(true_disc), "\n" ))
     cat(paste( "FPR:", sum(!true_disc & disc)/sum(!true_disc), "\n" ))
     cat("-----------------\n")
   }
+
+  # Output first 5 cluster labels, and first 5 genes' cluster-discriminatory status
   cat("cls (first 5 samples):\n")
   print(head(cls, n=5))
   cat("disc (first 5 genes):\n")
   print(head(disc, n=5))
+
   return(list(K=K, cls=cls, disc=disc,
               ARI=ARI, TPR=TPR, FPR=FPR))
 }
