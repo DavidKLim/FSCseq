@@ -11,11 +11,13 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
      20 } else if (method == "CEM") {     1 }, maxit_inits = if (method
   == "EM") {     15 } else if (method == "CEM") {     100 },
   maxit_EM = 100, maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
-  IRLS_tol = 1e-04, CDA_tol = 1e-04, disp = "gene", method = "EM",
+  IRLS_tol = 1e-04, CDA_tol = 1e-04, disp = "gene", method = "CEM",
   init_temp = nrow(y), trace = F, trace.file = NULL,
   mb_size = NULL, PP_filt = 0.001)
 }
 \arguments{
+\item{ncores}{integer, number of cores to utilize in parallel computing (default 1)}
+
 \item{X}{(optional) design matrix of dimension n by p}
 
 \item{y}{count matrix of dimension g by n}
@@ -38,15 +40,15 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{init_coefs}{matrix of dimension g by k, only if init_parms = TRUE}
 
-\item{init_phi}{vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE}
+\item{init_phi}{vector of dimension g (gene-specific dispersions), only if init_parms = TRUE}
 
-\item{init_cls}{(optional) vector of length n, initial clustering. If NA (default), multiple initializations will be searched}
+\item{init_cls}{(optional) vector of length n, initial clustering.}
 
 \item{init_wts}{(optional) matrix of dim k by n to denote initial clustering (allowing partial membership). If both init_cls and init_wts specified, init_wts will be ignored and init_cls used as initial clusters}
 
-\item{n_rinits}{integer, number of additional random initializations to be searched (default 50 for EM, 10 for CEM)}
+\item{n_rinits}{integer, number of additional random initializations to be searched (default 1)}
 
-\item{maxit_inits}{integer, maximum number of iterations for each initialization search (default 15 for EM, or until temperature anneals down to below 2 for CEM)}
+\item{maxit_inits}{integer, maximum number of iterations for each initialization search (default 100)}
 
 \item{maxit_EM}{integer, maximum number of iterations for full EM/CEM run (default 100)}
 
@@ -66,6 +68,8 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
+\item{trace.file}{(optional) string, file into which interim diagnostics will be printed}
+
 \item{mb_size}{minibatch size: # of genes to include per M step iteration}
 
 \item{PP_filt}{numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3}
@@ -74,7 +78,5 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 list containing outputs from EM_run() function
 }
 \description{
-Determine and search HC, KM, and random initializations by BIC,
-and then full EM/CEM run based on the optimal one.
-Calls EM_run function to perform the clustering.
+Run main CEM/EM clustering and feature selection algorithm.
 }

@@ -4,10 +4,11 @@
 \alias{simulateData}
 \title{Simulate RNA-seq bulk gene expression count data}
 \usage{
-simulateData(K, B = 1, g = 10000, n, pK = NULL, pB = NULL, LFCg,
-  pDEg, sigma_g = 0.1, LFCb = 1, pDEb = 0.5, sigma_b = 0, beta0,
-  phi0, SF = NULL, nsims = 25, disp = "gene", n_pred = 25,
-  save_file = TRUE, save_dir = NULL, save_pref = NULL)
+simulateData(K = 2, B = 1, g = 10000, n = 50, pK = NULL,
+  pB = NULL, LFCg = 1, pDEg = 0.05, sigma_g = 0.1, LFCb = 1,
+  pDEb = 0.5, sigma_b = 0, beta0 = 12, phi0 = 0.35, SF = NULL,
+  nsims = 25, disp = "gene", n_pred = 25, save_file = TRUE,
+  save_dir = NULL, save_pref = NULL)
 }
 \arguments{
 \item{K}{integer, number of clusters}
@@ -26,13 +27,13 @@ simulateData(K, B = 1, g = 10000, n, pK = NULL, pB = NULL, LFCg,
 
 \item{pDEg}{numeric, proportion of genes that are cluster-discriminatory}
 
-\item{sigma_g}{numeric, Gaussian noise added from N(0,sigma_g). Default is 0.1}
+\item{sigma_g}{numeric, Gaussian noise added to each gene/sample N(0,sigma_g). Default is 0.1}
 
 \item{LFCb}{numeric, LFC for genes that are differentially expressed across batch. Default is 1.}
 
 \item{pDEb}{numeric, proportion of genes that are differentially expressed across batch. Default is 0.5.}
 
-\item{sigma_b}{numeric, Gaussian noise added to each batch (turned off, set to 0).}
+\item{sigma_b}{numeric, batch-specific Gaussian noise (default 0).}
 
 \item{beta0}{numeric, baseline log2 expression for each gene before LFC is applied}
 

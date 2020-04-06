@@ -18,19 +18,19 @@ FSCseq_workflow(cts, ncores = 1, batch = NULL, X = NULL,
 
 \item{batch}{vector of batch, to use as covariates. Default is one batch (NULL).}
 
-\item{X}{optional input design matrix to specify p arbitrary covariates/confounders. Must be matrix of dimension n x p. If batch is additionally input, then X is augmented to incorporate batch as covariates.}
+\item{X}{optional input design matrix to specify p arbitrary covariates/confounders. Must be matrix of dimension n x p. If batch and X are both specified, then X is augmented to incorporate batch as covariates.}
 
 \item{true_cls}{(optional) integer vector of true groups, if available, for diagnostic tracking.}
 
 \item{true_disc}{(optional) logical vector of true discriminatory genes, if available, for diagnostic tracking.}
 
-\item{method}{string, either "EM" or "CEM". Default is "EM"}
+\item{method}{string, either "EM" or "CEM". Default is "CEM"}
 
-\item{n_rinits}{integer, number of additional random initializations (on top of Hierarchical and K-means) to be searched. Default is 20}
+\item{n_rinits}{integer, number of additional random initializations (on top of Hierarchical and K-means) to be searched. Default is 1}
 
-\item{med_filt}{numeric, threshold for minimum median gene normalized count for pre-filtering. med_filt=0 pre-filters no genes via this criterion. Default is 500.}
+\item{med_filt}{integer, threshold for minimum median gene normalized count for pre-filtering. med_filt=0 pre-filters no genes via this criterion. Default is 500.}
 
-\item{MAD_filt}{numeric, value between 0 and 100. quantile threshold for gene log MAD of normalized count. MAD_filt=0 pre-filters no genes via this criterion. Default is 50.}
+\item{MAD_filt}{integer, value between 0 and 100. quantile threshold for gene log MAD of normalized count. MAD_filt=0 pre-filters no genes via this criterion. Default is 50.}
 
 \item{K_search}{integer vector, values of K (number of clusters) to be searched. Default is 2:6}
 
@@ -42,9 +42,11 @@ FSCseq_workflow(cts, ncores = 1, batch = NULL, X = NULL,
 
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
+\item{trace.prefix}{(optional) string, prefix of file name to store trace output.}
+
 \item{nMB}{integer, number of minibatches to use in M step. Default is 5}
 
-\item{trace.file}{(optional) string, file name to store trace output. For example: 'test.txt'}
+\item{dir_name}{string, name of directory specified for saved results (if OS_save = TRUE) and diagnostics (if trace = TRUE)}
 }
 \value{
 list with K, cls, discriminatory, and fit

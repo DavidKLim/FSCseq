@@ -8,7 +8,21 @@ theta.ml2(y, mu, n = sum(weights), weights, t0 = 0, limit = 10,
   eps = .Machine$double.eps^0.25, trace = FALSE)
 }
 \arguments{
-\item{v}{a vector or matrix of numbers}
+\item{y}{cts matrix}
+
+\item{mu}{mean parameters}
+
+\item{n}{number of samples}
+
+\item{weights}{number of weights}
+
+\item{t0}{initial estimate of dispersion scale parameter}
+
+\item{limit}{max number of iterations}
+
+\item{eps}{tolerance}
+
+\item{trace}{boolean whether to trace progress}
 }
 \value{
 theta

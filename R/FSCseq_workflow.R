@@ -8,8 +8,8 @@
 #' @param X optional input design matrix to specify p arbitrary covariates/confounders. Must be matrix of dimension n x p. If batch and X are both specified, then X is augmented to incorporate batch as covariates.
 #' @param true_cls (optional) integer vector of true groups, if available, for diagnostic tracking.
 #' @param true_disc (optional) logical vector of true discriminatory genes, if available, for diagnostic tracking.
-#' @param method string, either "EM" or "CEM". Default is "EM"
-#' @param n_rinits integer, number of additional random initializations (on top of Hierarchical and K-means) to be searched. Default is 20
+#' @param method string, either "EM" or "CEM". Default is "CEM"
+#' @param n_rinits integer, number of additional random initializations (on top of Hierarchical and K-means) to be searched. Default is 1
 #' @param med_filt integer, threshold for minimum median gene normalized count for pre-filtering. med_filt=0 pre-filters no genes via this criterion. Default is 500.
 #' @param MAD_filt integer, value between 0 and 100. quantile threshold for gene log MAD of normalized count. MAD_filt=0 pre-filters no genes via this criterion. Default is 50.
 #' @param K_search integer vector, values of K (number of clusters) to be searched. Default is 2:6
@@ -165,7 +165,13 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
     discriminatory = discriminatory,
     fit = optim_res
   )
-
+  if(OS_save){
+    cat("Removing saved interim results...\n")
+    for(c in 1:K){
+      fname = sprintf("%s/OS%d.out", dir_name, K_search[c])
+      file.remove(fname)
+    }
+  }
   return(list(processed.dat = processed.dat, results = results))
 
 }

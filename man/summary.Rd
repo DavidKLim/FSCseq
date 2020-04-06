@@ -8,6 +8,10 @@ summary(res, true_cls = NULL, true_disc = NULL)
 }
 \arguments{
 \item{res}{Output of FSCseq clustering analysis}
+
+\item{true_cls}{(optional) vector of true cluster labels to calculate Adjusted Rand Index (ARI)}
+
+\item{true_disc}{(optional) TRUE/FALSE vector of true cluster-discriminatory gene status to calculate True Positive Rate (TPR) and False Positive Rate (FPR)}
 }
 \value{
 Summary of FSCseq clustering results: #clusters (K), clusters,

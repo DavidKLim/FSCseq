@@ -13,8 +13,6 @@
 #' l=matrix(c(-2000,-2100,-2050,-1000,-1050,-1100),nrow=3,ncol=2)
 #' logsumexpc(log_pi+l)
 #' log(sum(exp(log_pi+l)))
-#'
-#' @export
 logsumexpc=function(v){
   if(any(is.infinite(v))){
     warning("infinite value in v\n")
@@ -31,13 +29,18 @@ logsumexpc=function(v){
 #' theta.ml() with small ridge penalty to stabilize estimates, and using more efficient
 #' digamma and trigamma functions.
 #'
-#' @param v a vector or matrix of numbers
+#' @param y cts matrix
+#' @param mu mean parameters
+#' @param n number of samples
+#' @param weights number of weights
+#' @param t0 initial estimate of dispersion scale parameter
+#' @param limit max number of iterations
+#' @param eps tolerance
+#' @param trace boolean whether to trace progress
 #'
 #' @return theta
 #'
 #' @importFrom Rfast Digamma Trigamma
-#'
-#' @export
 theta.ml2=function (y, mu, n = sum(weights), weights, t0=0, limit = 10, eps = .Machine$double.eps^0.25,
                     trace = FALSE)
 {
@@ -114,8 +117,6 @@ theta.ml2=function (y, mu, n = sum(weights), weights, t0=0, limit = 10, eps = .M
 #' SCAD_soft_thresholding(beta2-beta1,0,0)
 #' SCAD_soft_thresholding(beta2-beta1,0.5,0.45)
 #' SCAD_soft_thresholding(beta2-beta1,1,1)
-#'
-#' @export
 SCAD_soft_thresholding=function(diff_beta,lambda,alpha){
   a=3.7
   if(abs(diff_beta)<=(alpha/(1-alpha))+lambda*alpha ){
@@ -152,8 +153,6 @@ SCAD_soft_thresholding=function(diff_beta,lambda,alpha){
 #' keep: logical matrix of whether a sample is included in cluster baseline calculation,
 #' Tau: numeric: resultant CEM temperature (after annealing),
 #' CEM: logical: whether CEM is continued to be run
-#'
-#' @export
 E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
   k=length(pi)
   n=ncol(l)
@@ -224,8 +223,6 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
 #' @return phi_g: estimate of phi
 #'
 #' @importFrom MASS theta.mm
-#'
-#' @export
 phi.ml=function(y,mu,dfr,weights,t0,limit,trace){
   theta_g = NULL
   #try(theta_g <- theta_ml_g(y=y, mu=mu, wts=weights, t0=t0, limit=limit, trace=(trace)^2),silent=TRUE)
@@ -263,8 +260,6 @@ phi.ml=function(y,mu,dfr,weights,t0,limit,trace){
 #' phi_g: Overdispersion estimate
 #'
 #' @importFrom stats glm
-#'
-#' @export
 glm.init=function(j,y_j,XX,k,offsets,wts,keep){
   ids = c(t(keep==1))  # PP filtering
 
@@ -300,8 +295,6 @@ glm.init=function(j,y_j,XX,k,offsets,wts,keep){
 #' phi_g: Overdispersion estimate
 #'
 #' @importFrom stats glm
-#'
-#' @export
 glm.init_par=function(j){
   ids = c(t(keep==1))  # PP filtering
 
@@ -333,8 +326,6 @@ glm.init_par=function(j){
 #' @param j gene index
 #'
 #' @return Same output as M_step() function
-#'
-#' @export
 M_step_par = function(j){
   if(Tau<=1 & a>6){
     if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){
@@ -371,8 +362,6 @@ M_step_par = function(j){
 #' @param j gene index
 #'
 #' @return Same output as M_step() function
-#'
-#' @export
 M_step_par2 = function(j, XX, y, p, a, k,
                        wts, keep, offsets,
                        theta_list, coefs, phi,

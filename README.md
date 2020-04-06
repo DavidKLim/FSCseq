@@ -176,9 +176,10 @@ FSCseq_results = FSCseq::FSCseq_workflow(cts=cts,
 #> Tuning parameters...
 #> K = 2 ... done.
 #> K = 3 ... done.
+#> Removing saved interim results...
 t1 = as.numeric(Sys.time())
 print(paste("time elapsed:",t1-t0))
-#> [1] "time elapsed: 279.909837961197"
+#> [1] "time elapsed: 310.549093008041"
 res = FSCseq_results$results
 ```
 

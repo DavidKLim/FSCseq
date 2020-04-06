@@ -22,10 +22,6 @@ processData(y, geoMeans = NULL, estimateSFtype = "ratio",
 \item{med_thresh}{numeric, median threshold for pre-filtering low-count genes (default 100, i.e. pre-filters genes with median normalized count below 100)}
 
 \item{MAD_quant_thresh}{numeric value between 0 to 100, quantile threshold imposed on MAD values for pre-filtering low-variable genes (default 50, i.e. pre-filters genes below 50th quantile of MAD values)}
-
-\item{calc_vsd}{TRUE if want to output count after variance-stabilizing transform}
-
-\item{calc_rld}{TRUE if want to output count after rlog transform}
 }
 \value{
 list containing the following objects:

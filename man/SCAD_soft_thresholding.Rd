@@ -27,5 +27,4 @@ beta2=2
 SCAD_soft_thresholding(beta2-beta1,0,0)
 SCAD_soft_thresholding(beta2-beta1,0.5,0.45)
 SCAD_soft_thresholding(beta2-beta1,1,1)
-
 }

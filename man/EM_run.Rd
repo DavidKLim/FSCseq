@@ -9,12 +9,14 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
   true_clusters = NA, true_disc = NA, init_parms = FALSE,
   init_coefs = matrix(0, nrow = nrow(y), ncol = k),
   init_phi = matrix(0, nrow = nrow(y), ncol = k), init_cls = NULL,
-  init_wts = NULL, CEM = F, init_Tau = 1, maxit_EM = 100,
+  init_wts = NULL, CEM = T, init_Tau = nrow(y), maxit_EM = 100,
   maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
   IRLS_tol = 1e-04, CDA_tol = 1e-04, disp, trace = F,
   mb_size = NULL, PP_filt)
 }
 \arguments{
+\item{ncores}{integer, number of cores to utilize in parallel computing (default 1)}
+
 \item{X}{design matrix of dimension n by p}
 
 \item{y}{count matrix of dimension g by n}
@@ -43,11 +45,11 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
 
 \item{init_wts}{matrix of dim k x n: denotes cluster memberships, but can have partial membership. init_wts or init_cls must be initialized}
 
-\item{CEM}{logical, TRUE for EM (default), FALSE for CEM}
+\item{CEM}{logical, TRUE for CEM (default), FALSE for EM}
 
 \item{init_Tau}{numeric, initial temperature for CEM. Default is 1 for EM and g for CEM}
 
-\item{maxit_EM}{integer, maximum number of iterations for full EM/CEM run (default 100)}
+\item{maxit_EM}{integer, maximum number of iterations for full CEM/EM run (default 100)}
 
 \item{maxit_IRLS}{integer, maximum number of iterations for IRLS loop, in M step (default 50)}
 
@@ -62,30 +64,13 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
 \item{disp}{string, either "gene" (default) or "cluster"}
 
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
+
+\item{mb_size}{minibatch size: # of genes to include per M step iteration}
+
+\item{PP_filt}{numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3}
 }
 \value{
-FSCseq object: list containing outputs
-k: integer order,
-pi: numeric vector of mixture proportions,
-coefs: numeric matrix of dimensions g by (k+p) cluster log2 baselines and covariate effects,
-Q: numeric vector of Q function values across iterations,
-BIC: numeric BIC value,
-discriminatory: logical vector of length g of whether a gene is discriminatory,
-init_clusters: numeric vector of clusters at beginning of EM/CEM algorithm,
-init_coefs: matrix of dimension g by k only output if initial parameter estimates were specified,
-init_phi: vector of length g or matrix of dimension g by k only output if initial parameter estimates were specified,
-final_clusters: vector of length n of resulting clusters,
-phi: dispersion estimates,
-logL: total log-likelihood,
-wts: k by n matrix of E step weights,
-time_elap: amount of time elapsed (in seconds),
-lambda: input lambda,
-alpha: input alpha,
-size_factors: input size factors,
-norm_y: input norm_y,
-DNC: 1 if EM didn't converge in maxits and 0 if it did,
-LFCs: matrix of dimension g by maxit_EM of LFCs (max-min)/(k-1)
-n_its: number of iterations of the EM/CEM to convergence
+FSCseq object with clustering results, posterior probabilities of cluster membership, and cluster-discriminatory status of each gene
 }
 \description{
 Performs clustering, feature selection, and estimation of parameters

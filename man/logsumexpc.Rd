@@ -22,5 +22,4 @@ log_pi=log(c(0.1,0.02,0.07))
 l=matrix(c(-2000,-2100,-2050,-1000,-1050,-1100),nrow=3,ncol=2)
 logsumexpc(log_pi+l)
 log(sum(exp(log_pi+l)))
-
 }
