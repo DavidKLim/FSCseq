@@ -23,6 +23,14 @@
 #'
 #' @return list with K, cls, discriminatory, and fit
 #'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
+#'
+#' @examples
+#' sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+#' \dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+#' \dontrun{summary(FSCseq_workflow$results)}
+#'
 #' @export
 FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = NULL, true_disc = NULL,
                            method = "CEM", n_rinits = 1, med_filt = 500, MAD_filt = 50, K_search = c(2:6),
@@ -187,6 +195,15 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 #' @param idx boolean vector: TRUE if gene passed pre-filtering step
 #'
 #' @return list with processed.dat.pred (processed prediction data), and prediction results
+#'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
+#'
+#' @examples
+#' sim.dat = simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+#' \dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+#' \dontrun{proc.dat = FSCseq_results$processed.dat}
+#' \dontrun{pred_results = FSCseq_predict_workflow(fit=FSCseq_results$results$fit, cts=sim.dat$cts, cts_pred=sim.dat$cts_pred, idx=proc.dat$idx)}
 #'
 #' @export
 FSCseq_predict_workflow = function(X = NULL, fit, cts, cts_pred, idx) {

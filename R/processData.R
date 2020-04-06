@@ -20,6 +20,13 @@
 #' row_medians: numeric vector, median normalized count for each gene
 #' row_MADs: numeric vector, median absolute deviation (MAD) value of log(norm_y+0.1) for each gene
 #'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
+#'
+#' @examples
+#' sim.dat = simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+#' proc.dat = processData(sim.dat$cts)
+#'
 #' @importFrom DESeq2 DESeqDataSetFromMatrix varianceStabilizingTransformation rlogTransformation estimateSizeFactors sizeFactors counts
 #' @importFrom matrixStats rowMedians
 #'
@@ -81,6 +88,14 @@ processData = function(y, geoMeans = NULL, estimateSFtype = "ratio",
 #'
 #' @return Summary of FSCseq clustering results: #clusters (K), clusters,
 #' ARI (if true_cls input), TPR and FPR (vs. true cluster-discriminatory genes if true_disc input)
+#'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
+#'
+#' @examples
+#' sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+#' \dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+#' \dontrun{summary(FSCseq_workflow$results)}
 #'
 #' @importFrom mclust adjustedRandIndex
 #'

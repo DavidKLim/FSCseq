@@ -406,7 +406,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param y count matrix of dimension g by n
 #' @param k integer, number of clusters
 #' @param lambda numeric penalty parameter, lambda >= 0
-#' @param alpha numeric penalty parameters, 0 <= alpha < 1
+#' @param alpha numeric penalty parameter, 0 <= alpha < 1
 #' @param size_factors numeric vector of length n, factors to correct for subject-specific variation of sequencing depth
 #' @param norm_y count matrix of dimension g by n, normalized for differences in sequencing depth
 #' @param true_clusters (optional) integer vector of true groups, if available, for diagnostic tracking
@@ -418,13 +418,13 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param init_wts (optional) matrix of dim k by n to denote initial clustering (allowing partial membership). If both init_cls and init_wts specified, init_wts will be ignored and init_cls used as initial clusters
 #' @param n_rinits integer, number of additional random initializations to be searched (default 1)
 #' @param maxit_inits integer, maximum number of iterations for each initialization search (default 100)
-#' @param maxit_EM integer, maximum number of iterations for full EM/CEM run (default 100)
+#' @param maxit_EM integer, maximum number of iterations for full CEM/EM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS algorithm, in M step (default 50)
 #' @param maxit_CDA integer, maximum number of iterations for CDA loop (default 50)
 #' @param EM_tol numeric, tolerance of convergence for EM/CEM, default is 1E-6
 #' @param IRLS_tol numeric, tolerance of convergence for IRLS, default is 1E-4
 #' @param CDA_tol numeric, tolerance of convergence for IRLS, default is 1E-4
-#' @param method string, either "EM" (default) or "CEM"
+#' @param method string, either "EM" or "CEM" (default)
 #' @param init_temp numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #' @param trace.file (optional) string, file into which interim diagnostics will be printed
@@ -432,6 +432,9 @@ M_step_par2 = function(j, XX, y, p, a, k,
 #' @param PP_filt numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3
 #'
 #' @return list containing outputs from EM_run() function
+#'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @export
 FSCseq<-function(ncores=1,X=NULL, y, k,
@@ -670,10 +673,10 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param init_parms logical, TRUE: custom parameter initializations, FALSE (default): start from scratch
 #' @param init_coefs matrix of dimension g by k, only if init_parms = TRUE
 #' @param init_phi vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE
-#' @param init_cls vector of length n, initial clustering. If NA (default), multiple initializations will be searched. init_wts or init_cls must be initialized
+#' @param init_cls vector of length n, initial clustering.
 #' @param init_wts matrix of dim k x n: denotes cluster memberships, but can have partial membership. init_wts or init_cls must be initialized
 #' @param CEM logical, TRUE for CEM (default), FALSE for EM
-#' @param init_Tau numeric, initial temperature for CEM. Default is 1 for EM and g for CEM
+#' @param init_Tau numeric, initial temperature for CEM. Default is g for CEM (set to 1 for EM)
 #' @param maxit_EM integer, maximum number of iterations for full CEM/EM run (default 100)
 #' @param maxit_IRLS integer, maximum number of iterations for IRLS loop, in M step (default 50)
 #' @param maxit_CDA integer, maximum number of iterations for CDA loop (default is 50)
@@ -686,6 +689,9 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
 #' @param PP_filt numeric between (0,1), threshold on PP for sample/cl to be included in M step estimation. Default is 1e-3
 #'
 #' @return FSCseq object with clustering results, posterior probabilities of cluster membership, and cluster-discriminatory status of each gene
+#'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @importFrom mclust adjustedRandIndex
 #' @importFrom parallel makeCluster clusterExport stopCluster clusterEvalQ parLapply mclapply
@@ -1251,6 +1257,9 @@ EM_run <- function(ncores,X=NA, y, k,
 #' @return list containing outputs
 #' final_clusters: vector of length n of resulting clusters,
 #' wts: k by n matrix of E step weights
+#'
+#' @author David K. Lim, \email{deelim@live.unc.edu}
+#' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @export
 FSCseq_predict <- function(X=NULL,fit,cts_pred,SF_pred){
