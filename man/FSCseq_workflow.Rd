@@ -54,3 +54,15 @@ list with K, cls, discriminatory, and fit
 \description{
 Full FSCseq workflow based on minimal working defaults
 }
+\examples{
+sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+\dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+\dontrun{summary(FSCseq_workflow$results)}
+
+}
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
+}

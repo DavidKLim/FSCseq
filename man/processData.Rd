@@ -37,3 +37,14 @@ Estimate size factors using DESeq2, and pre-filter based on low count and
 low variability genes using custom thresholds on median normalized count and
 median absolute deviation (MAD) values.
 }
+\examples{
+sim.dat = simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+proc.dat = processData(sim.dat$cts)
+
+}
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
+}

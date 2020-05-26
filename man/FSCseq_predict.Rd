@@ -23,3 +23,9 @@ wts: k by n matrix of E step weights
 \description{
 Performs prediction of cluster membership via trained model
 }
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
+}

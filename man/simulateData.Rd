@@ -60,3 +60,13 @@ if save_file=TRUE, then saved file in '<save_dir>/<save_pref>_sim<1:nsims>_data.
 Simulate data based on input simulation parameters. Size factors are custom input
 or simulated from N(1,0.25)
 }
+\examples{
+sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
+
+}
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
+}

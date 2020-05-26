@@ -41,13 +41,13 @@ EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
 
 \item{init_phi}{vector of dimension g (gene-specific dispersions) or matrix of dimension g by k (cluster-specific dispersions), only if init_parms = TRUE}
 
-\item{init_cls}{vector of length n, initial clustering. If NA (default), multiple initializations will be searched. init_wts or init_cls must be initialized}
+\item{init_cls}{vector of length n, initial clustering.}
 
 \item{init_wts}{matrix of dim k x n: denotes cluster memberships, but can have partial membership. init_wts or init_cls must be initialized}
 
 \item{CEM}{logical, TRUE for CEM (default), FALSE for EM}
 
-\item{init_Tau}{numeric, initial temperature for CEM. Default is 1 for EM and g for CEM}
+\item{init_Tau}{numeric, initial temperature for CEM. Default is g for CEM (set to 1 for EM)}
 
 \item{maxit_EM}{integer, maximum number of iterations for full CEM/EM run (default 100)}
 
@@ -75,4 +75,10 @@ FSCseq object with clustering results, posterior probabilities of cluster member
 \description{
 Performs clustering, feature selection, and estimation of parameters
 using a finite mixture model of negative binomials
+}
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
 }

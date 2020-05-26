@@ -26,7 +26,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{lambda}{numeric penalty parameter, lambda >= 0}
 
-\item{alpha}{numeric penalty parameters, 0 <= alpha < 1}
+\item{alpha}{numeric penalty parameter, 0 <= alpha < 1}
 
 \item{size_factors}{numeric vector of length n, factors to correct for subject-specific variation of sequencing depth}
 
@@ -50,7 +50,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{maxit_inits}{integer, maximum number of iterations for each initialization search (default 100)}
 
-\item{maxit_EM}{integer, maximum number of iterations for full EM/CEM run (default 100)}
+\item{maxit_EM}{integer, maximum number of iterations for full CEM/EM run (default 100)}
 
 \item{maxit_IRLS}{integer, maximum number of iterations for IRLS algorithm, in M step (default 50)}
 
@@ -62,7 +62,7 @@ FSCseq(ncores = 1, X = NULL, y, k, lambda = 0, alpha = 0,
 
 \item{CDA_tol}{numeric, tolerance of convergence for IRLS, default is 1E-4}
 
-\item{method}{string, either "EM" (default) or "CEM"}
+\item{method}{string, either "EM" or "CEM" (default)}
 
 \item{init_temp}{numeric, default for CEM: init_temp = nrow(y), i.e. number of genes. temp=1 for EM}
 
@@ -79,4 +79,10 @@ list containing outputs from EM_run() function
 }
 \description{
 Run main CEM/EM clustering and feature selection algorithm.
+}
+\references{
+\url{https://github.com/DavidKLim/FSCseq}
+}
+\author{
+David K. Lim, \email{deelim@live.unc.edu}
 }
