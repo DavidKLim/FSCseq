@@ -177,6 +177,16 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     #}
   }
 
+  if(CEM){
+    # C step
+    draw_wts=wts                 # initialize
+    for(i in 1:n){
+      set.seed(i) # for reproducibility. stabilizes param ests in beginning iterations
+      draw_wts[,i] = rmultinom(1,1,wts[,i])
+    }
+    wts=draw_wts
+  }
+
   # UB and LB on weights
   for(i in 1:n){
     for(c in 1:k){
@@ -188,16 +198,6 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
         wts[c,i]=1-1E-50
       }
     }
-  }
-
-  if(CEM){
-    # C step
-    draw_wts=wts                 # initialize
-    for(i in 1:n){
-      set.seed(i) # for reproducibility. stabilizes param ests in beginning iterations
-      draw_wts[,i] = rmultinom(1,1,wts[,i])
-    }
-    wts=draw_wts
   }
 
   # Input in M step only samples with PP's > 0.001
