@@ -1071,9 +1071,14 @@ EM_run <- function(ncores,X=NA, y, k,
                 mu=2^(coefs[,c] + cov_eff + offset_eff),log=TRUE)
       )
     }
-
+    if(trace){
+      cat(paste("pi: ",pi,"\n"))
+      cat(paste("rowSums(wts): ",rowSums(wts),"\n"))
+      cat(paste("rowSums(l): ",rowSums(l),"\n"))
+    }
     # store and check Q function
     Q[a]<- (log(pi)%*%rowSums(wts)) + sum(wts*l)
+    cat(paste("Q: ",Q[a],"\n"))
 
     # break condition for EM
     if(a>n_mb){
