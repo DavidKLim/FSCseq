@@ -864,7 +864,7 @@ EM_run <- function(ncores,X=NA, y, k,
           }
         }
       }
-      pi=rowMeans(wts)
+      #pi=rowMeans(wts)
       for(j in 1:g){
         theta<-matrix(rep(0,times=k^2),nrow=k)
         for(c in 1:k){
@@ -912,6 +912,7 @@ EM_run <- function(ncores,X=NA, y, k,
     # }
 
     pi=rowMeans(wts)
+    pi[pi==0]=1e-50; pi[pi==1]=1-1e-50  # for stability in log(pi) in Q function
 
     # M step
     Mstart=as.numeric(Sys.time())
