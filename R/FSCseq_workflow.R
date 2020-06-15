@@ -57,11 +57,16 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 
   # X1: Design matrix for batch
   if (length(unique(batch)) != 1) {
-    # more than one batch
+    ##more than one batch
     X1 = matrix(nrow = ncol(cts), ncol = length(unique(batch)))
     for (i in 1:length(unique(batch))) {
       X1[, i] = (batch == unique(batch)[i]) ^ 2    # cell-means coding of batch
     }
+    # if(min(batch)!=0){batch = batch - min(batch)}
+    # X1 = matrix(nrow = ncol(cts), ncol = length(unique(batch))-1)  # reference-cell coding. batch=0 is the reference: to do this, I have to estimate an intercept in M-step!!
+    # for(i in 2:(length(unique(batch)))){
+    #   X1[, i-1] = (batch == sort(unique(batch))[i])^2
+    # }
   } else{
     # all the same batch: no need to adjust
     X1 = NULL
@@ -175,7 +180,7 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
   )
   if(OS_save){
     cat("Removing saved interim results...\n")
-    for(c in 1:K){
+    for(c in 1:length(K_search)){
       fname = sprintf("%s/OS%d.out", dir_name, K_search[c])
       file.remove(fname)
     }
