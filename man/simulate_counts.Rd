@@ -4,8 +4,23 @@
 \alias{simulate_counts}
 \title{Simulate data with gene-wise dispersion parameters}
 \usage{
-simulate_counts(K, B, n, g, cls, SF, beta, phi, LFCg_mat, batch, LFCb,
-  sigma_b, sigma_g, DEb_ID, disp)
+simulate_counts(
+  K,
+  B,
+  n,
+  g,
+  cls,
+  SF,
+  beta,
+  phi,
+  LFCg_mat,
+  batch,
+  batch_effects,
+  sigma_b,
+  sigma_g,
+  DEb_ID,
+  disp
+)
 }
 \description{
 Simulate data with gene-wise dispersion parameters

@@ -4,9 +4,15 @@
 \alias{processData}
 \title{Pre-process the count matrix}
 \usage{
-processData(y, geoMeans = NULL, estimateSFtype = "ratio",
-  med_filt = TRUE, MAD_filt = TRUE, med_thresh = 100,
-  MAD_quant_thresh = 50)
+processData(
+  y,
+  geoMeans = NULL,
+  estimateSFtype = "ratio",
+  med_filt = TRUE,
+  MAD_filt = TRUE,
+  med_thresh = 100,
+  MAD_quant_thresh = 50
+)
 }
 \arguments{
 \item{y}{integer, gene expression count matrix (output from simulateData)}

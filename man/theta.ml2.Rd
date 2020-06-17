@@ -4,8 +4,16 @@
 \alias{theta.ml2}
 \title{Theta estimation with penalty}
 \usage{
-theta.ml2(y, mu, n = sum(weights), weights, t0 = 0, limit = 10,
-  eps = .Machine$double.eps^0.25, trace = FALSE)
+theta.ml2(
+  y,
+  mu,
+  n = sum(weights),
+  weights,
+  t0 = 0,
+  limit = 10,
+  eps = .Machine$double.eps^0.25,
+  trace = FALSE
+)
 }
 \arguments{
 \item{y}{cts matrix}

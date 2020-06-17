@@ -4,15 +4,35 @@
 \alias{EM_run}
 \title{EM/CEM run for FSCseq}
 \usage{
-EM_run(ncores, X = NA, y, k, lambda = 0, alpha = 0,
-  size_factors = rep(1, times = ncol(y)), norm_y = y,
-  true_clusters = NA, true_disc = NA, init_parms = FALSE,
+EM_run(
+  ncores,
+  X = NA,
+  y,
+  k,
+  lambda = 0,
+  alpha = 0,
+  size_factors = rep(1, times = ncol(y)),
+  norm_y = y,
+  true_clusters = NA,
+  true_disc = NA,
+  init_parms = FALSE,
   init_coefs = matrix(0, nrow = nrow(y), ncol = k),
-  init_phi = matrix(0, nrow = nrow(y), ncol = k), init_cls = NULL,
-  init_wts = NULL, CEM = T, init_Tau = nrow(y), maxit_EM = 100,
-  maxit_IRLS = 50, maxit_CDA = 50, EM_tol = 1e-06,
-  IRLS_tol = 1e-04, CDA_tol = 1e-04, disp, trace = F,
-  mb_size = NULL, PP_filt)
+  init_phi = matrix(0, nrow = nrow(y), ncol = k),
+  init_cls = NULL,
+  init_wts = NULL,
+  CEM = T,
+  init_Tau = nrow(y),
+  maxit_EM = 100,
+  maxit_IRLS = 50,
+  maxit_CDA = 50,
+  EM_tol = 1e-06,
+  IRLS_tol = 1e-04,
+  CDA_tol = 1e-04,
+  disp,
+  trace = F,
+  mb_size = NULL,
+  PP_filt
+)
 }
 \arguments{
 \item{ncores}{integer, number of cores to utilize in parallel computing (default 1)}

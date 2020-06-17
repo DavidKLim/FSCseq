@@ -4,16 +4,25 @@
 \alias{FSCseq_predict_workflow}
 \title{Minimal workflow for FSCseq_predict}
 \usage{
-FSCseq_predict_workflow(X = NULL, fit, cts, cts_pred, idx)
+FSCseq_predict_workflow(
+  res,
+  X_covar_train = NULL,
+  cts_train,
+  SF_train = NULL,
+  batch_train = NULL,
+  X_covar_pred = NULL,
+  cts_pred,
+  batch_pred = NULL
+)
 }
 \arguments{
+\item{cts_pred}{integer matrix, count matrix of dimension g by n_pred. Must be integers (counts)}
+
 \item{X}{covariates (optional)}
 
 \item{fit}{FSCseq results object. Accessed by $results from FSCseq_workflow object}
 
 \item{cts}{Training set count matrix, dimension g by n. Used as pseudo-reference to calculate prediction set size factors}
-
-\item{cts_pred}{integer matrix, count matrix of dimension g by n_pred. Must be integers (counts)}
 
 \item{idx}{boolean vector: TRUE if gene passed pre-filtering step}
 }

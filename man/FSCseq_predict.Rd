@@ -4,7 +4,15 @@
 \alias{FSCseq_predict}
 \title{Prediction via FSCseq}
 \usage{
-FSCseq_predict(X = NULL, fit, cts_pred, SF_pred)
+FSCseq_predict(
+  X = NULL,
+  p_covar = 0,
+  fit,
+  cts_train = NULL,
+  cts_pred,
+  SF_train = NULL,
+  SF_pred
+)
 }
 \arguments{
 \item{X}{(optional) design matrix of dimension n by p}

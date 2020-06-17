@@ -211,15 +211,125 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 #' \dontrun{pred_results = FSCseq_predict_workflow(fit=FSCseq_results$results$fit, cts=sim.dat$cts, cts_pred=sim.dat$cts_pred, idx=proc.dat$idx)}
 #'
 #' @export
-FSCseq_predict_workflow = function(X = NULL, fit, cts, cts_pred, idx) {
-  geoMeans = exp(rowMeans(log(cts)))   # input custom geometric means (relative to training set)
-  cat("Computing size factors...\n")
+# FSCseq_predict_workflow = function(X = NULL, fit, cts, cts_pred, idx) {
+  # add cts_train, batch_train, batch_pred, SF_train into input
+  # this function will calculate SF_pred
+  # create X_train and X_pred
+  # incorporating covariates (train set) and covariates (pred set)
+  # need to incorporate option not batch-adjust (in FSCseq.R too: make sure X_train=NULL and X_pred=NULL works)
+  # in FSCseq.R: incorporate covariates in X_train and X_pred along with batch
+
+  ############################################ OLD ###################################################
+
+  # geoMeans = exp(rowMeans(log(cts)))   # input custom geometric means (relative to training set)
+  # cat("Computing size factors...\n")
+  # processed.dat.pred = FSCseq::processData(y = cts_pred, geoMeans = geoMeans,
+  #                                          med_filt = FALSE, MAD_filt = FALSE)
+  # SF_pred = processed.dat.pred$size_factors
+  #
+  # cat("Computing predictive posterior probabilities...\n")
+  # res_pred = FSCseq_predict(X = NULL, fit = fit, cts_pred = cts_pred[idx, ], SF_pred = SF_pred)
+  #
+  # return(list(processed.dat.pred = processed.dat.pred, results = res_pred))
+
+  ############################################ NEW ###################################################
+FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_train=NULL, batch_train=NULL,
+                                   X_covar_pred = NULL, cts_pred, batch_pred=NULL) {
+  #### fit = straight from FSCseq_workflow output
+  #### X_train and X_pred are covariates
+  # idx: ids filtered by rowMedians and MAD
+  n_train = ncol(cts_train)
+  n_pred = ncol(cts_pred)
+  n = n_train + n_pred
+
+  if(!is.null(SF_train)){if(length(SF_train) != n_train){stop("SF_train must be length of ncol(cts_train).")}}
+  if(!is.null(batch_train)){if(length(batch_train) != n_train){stop("batch_train must be length ncol(cts_train).")}}
+  if(!is.null(batch_pred)){if(length(batch_pred) != n_pred){stop("batch_pred must be length ncol(cts_pred).")}}
+
+  filt_idx = res$processed.dat$idx
+
+  geoMeans = exp(rowMeans(log(cts_train)))
+  # Computing size factors of just prediction set (using geoMeans)
   processed.dat.pred = FSCseq::processData(y = cts_pred, geoMeans = geoMeans,
                                            med_filt = FALSE, MAD_filt = FALSE)
   SF_pred = processed.dat.pred$size_factors
 
-  cat("Computing predictive posterior probabilities...\n")
-  res_pred = FSCseq_predict(X = NULL, fit = fit, cts_pred = cts_pred[idx, ], SF_pred = SF_pred)
+  # Design matrix for covariates (non-batch)
+  if(is.null(X_covar_train) & is.null(X_covar_pred)) {
+    X_covar = NULL
+  } else if(!is.null(X_covar_train) & is.null(X_covar_pred)){
+    stop("Covariates in training, but no covariates in prediction. Need to input relevant prediction set covariates")
+    X_covar = X_covar_train
+  } else if(is.null(X_covar_train) & !is.null(X_covar_pred)){
+    stop("No covariates in training, but covariates in prediction. Must have adjusted for covariates in training to adjust in prediction")
+    X_covar = X_covar_pred
+  } else{
+    if(ncol(X_covar_train) != ncol(X_covar_pred)){
+      stop("Number of columns in X_covar_train and X_covar_pred must be the same. Did you include batch in these design matrices?")
+      # users may include batch in these. Put in vignette that batch info will be concatenated into the design matrix, and shouldn't be included here
+    }
+    X_covar = rbind(X_covar_train, X_covar_pred)
+  }
+  p_covar = if(!is.null(X_covar)){ncol(X_covar)}else{0}
 
-  return(list(processed.dat.pred = processed.dat.pred, results = res_pred))
+  # Design matrix for batch
+  if(is.null(batch_train) & is.null(batch_pred)){
+    # no training batch info, no prediction batch info
+    B_train=0; B_pred=0
+    cat("No batch info in data (training or prediction). Not adjusting for batch effects in prediction...\n")
+    X_batch = NULL
+  }else{
+    if(is.null(batch_train) & !is.null(batch_pred)){
+      # no training batch info, yes prediction batch info
+      warning("No training batch info in data, but prediction batch info input.")
+      if(length(unique(batch_pred))==1){
+        warning("Assuming one training batch and one prediction batch.")
+        batch = c(rep(1,n_train),rep(1,n_pred))
+      } else{
+        warning("Assuming training samples from one separate batch")
+        batch_pred = batch_pred - min(batch_pred) + 2   # prediction batch starts from 2, .... B_pred+1
+        batch = c(rep(1,n_train), batch_pred)
+      }
+    }else if(!is.null(batch_train) & is.null(batch_pred)){
+      # yes training batch info, no prediction batch info
+      warning("No prediction batch info in data. Assuming prediction batch from one separate batch. Was this intended?")
+      batch_train = batch_train - min(batch_train) + 1 # training batch starts from 1, ..., B_train
+      batch = c(batch_train, rep(length(unique(batch_train))+1,n_pred))
+    }else{
+      # yes training batch info, yes prediction batch info
+      if(any(batch_pred %in% batch_train)){
+        warning("Found training batches in prediction batch. Is this intended?")
+      }
+      # rare case where batch_pred is poorly numbered, i.e.: batch_train=1,...,B and batch_pred = (B+3),....,(B+11)
+      if(min(batch_pred) > max(batch_train)+1){ batch_pred = batch_pred - (min(batch_pred) - max(batch_train) - 1) }
+      batch = c(batch_train, batch_pred)
+    }
+    X_batch = matrix(0, nrow=n, ncol=length(unique(batch)))
+    for (i in 1:length(unique(batch))) { X_batch[, i] = (batch == unique(batch)[i]) ^ 2 }
+  }
+
+  if(is.null(X_batch) & is.null(X_covar)){
+    X=NULL
+  }else if(!is.null(X_batch) & is.null(X_covar)){
+    X=X_batch
+  }else if(is.null(X_batch) & !is.null(X_covar)){
+    X=X_covar
+  }else{
+    X=cbind(X_covar, X_batch)
+  }
+
+  cat("Computing predictive posterior probabilities...\n")
+
+  #fit=res$results$fit; cts_train=cts; batch_train=batch
+  res_pred = FSCseq_predict(X=X, p_covar=p_covar,
+                            fit=res$results$fit, cts_train=cts_train[filt_idx,], #batch_train=batch_train, batch_pred=batch_pred,
+                            cts_pred=cts_pred[filt_idx,], SF_train=SF_train, SF_pred=SF_pred)
+  covariates = list(batch_train = batch_train,
+                    batch_pred = batch_pred,
+                    X_batch = X_batch,
+                    X_covar_train = X_covar_train,
+                    X_covar_pred = X_covar_pred)
+
+  res_pred$covariates=covariates
+  return(res_pred)
 }

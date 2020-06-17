@@ -4,11 +4,31 @@
 \alias{simulateData}
 \title{Simulate RNA-seq bulk gene expression count data}
 \usage{
-simulateData(K = 2, B = 1, g = 10000, n = 50, pK = NULL,
-  pB = NULL, LFCg = 1, pDEg = 0.05, sigma_g = 0.1, LFCb = 1,
-  pDEb = 0.5, sigma_b = 0, beta0 = 12, phi0 = 0.35, SF = NULL,
-  nsims = 25, disp = "gene", n_pred = 25, save_file = TRUE,
-  save_dir = NULL, save_pref = NULL)
+simulateData(
+  K = 2,
+  B = 1,
+  g = 10000,
+  n = 50,
+  pK = NULL,
+  pB = NULL,
+  LFCg = 1,
+  pDEg = 0.05,
+  sigma_g = 0.1,
+  LFCb = 1,
+  pDEb = 0.5,
+  sigma_b = 0,
+  beta0 = 12,
+  phi0 = 0.35,
+  SF = NULL,
+  nsims = 25,
+  disp = "gene",
+  n_pred = 25,
+  sim_batch_pred = FALSE,
+  LFCb_pred = NULL,
+  save_file = TRUE,
+  save_dir = NULL,
+  save_pref = NULL
+)
 }
 \arguments{
 \item{K}{integer, number of clusters}
@@ -46,6 +66,10 @@ simulateData(K = 2, B = 1, g = 10000, n = 50, pK = NULL,
 \item{disp}{string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'}
 
 \item{n_pred}{integer, number of samples in simulated prediction dataset. Default is 25}
+
+\item{sim_batch_pred}{boolean: FALSE (no batch effect for prediction samples) or TRUE (batch effect)}
+
+\item{LFCb_pred}{LFCb for batch-affected genes in prediction set. By default (NULL), = max(batch_effects) + LFCb/2: larger batch effect than training.}
 
 \item{save_file}{boolean: TRUE (save each set of simulations)}
 

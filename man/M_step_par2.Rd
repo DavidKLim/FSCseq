@@ -4,9 +4,33 @@
 \alias{M_step_par2}
 \title{Parallelized M step (mclapply)}
 \usage{
-M_step_par2(j, XX, y, p, a, k, wts, keep, offsets, theta_list, coefs, phi,
-  cl_phi, est_phi, est_covar, lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS,
-  maxit_CDA, Tau, disc_ids_list, par_X)
+M_step_par2(
+  j,
+  XX,
+  y,
+  p,
+  a,
+  k,
+  wts,
+  keep,
+  offsets,
+  theta_list,
+  coefs,
+  phi,
+  cl_phi,
+  est_phi,
+  est_covar,
+  est_beta,
+  lambda,
+  alpha,
+  IRLS_tol,
+  CDA_tol,
+  maxit_IRLS,
+  maxit_CDA,
+  Tau,
+  disc_ids_list,
+  par_X
+)
 }
 \arguments{
 \item{j}{gene index}

@@ -335,7 +335,7 @@ M_step_par = function(j){
   res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-               cl_phi=cl_phi,est_covar=est_covar[j],
+               cl_phi=cl_phi,est_covar=est_covar[j],est_beta=est_beta[j],
                lambda=lambda,alpha=alpha,
                IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
                CDA_tol=CDA_tol,maxit_CDA=maxit_CDA)
@@ -365,7 +365,7 @@ M_step_par = function(j){
 M_step_par2 = function(j, XX, y, p, a, k,
                        wts, keep, offsets,
                        theta_list, coefs, phi,
-                       cl_phi, est_phi, est_covar,
+                       cl_phi, est_phi, est_covar, est_beta,
                        lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA,
                        Tau, disc_ids_list, par_X){
   if(Tau<=1 & a>6){
@@ -376,7 +376,7 @@ M_step_par2 = function(j, XX, y, p, a, k,
   res = M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-               cl_phi=cl_phi,est_covar=est_covar[j],
+               cl_phi=cl_phi,est_covar=est_covar[j],est_beta=est_beta[j],
                lambda=lambda,alpha=alpha,
                IRLS_tol=IRLS_tol,CDA_tol=CDA_tol,
                maxit_IRLS=maxit_IRLS,maxit_CDA=maxit_CDA)
@@ -707,7 +707,7 @@ EM_run <- function(ncores,X=NA, y, k,
                    init_phi=matrix(0,nrow=nrow(y),ncol=k),
                    init_cls=NULL,init_wts=NULL,
                    CEM=T,init_Tau=nrow(y),
-                   maxit_EM=100, maxit_IRLS = 50,maxit_CDA=50,EM_tol = 1E-6,IRLS_tol = 1E-4,CDA_tol=1E-4,disp,trace=F,
+                   maxit_EM=100, maxit_IRLS = 50,maxit_CDA=50,EM_tol = 1E-6,IRLS_tol = 1E-4, CDA_tol=1E-4, disp,trace=F,
                    mb_size=NULL,PP_filt){
 
   start_time <- Sys.time()
@@ -788,6 +788,7 @@ EM_run <- function(ncores,X=NA, y, k,
 
   est_phi=rep(1,g)                          # 1 for true, 0 for false
   est_covar = ifelse(covars,rep(1,g),rep(0,g))
+  est_beta = rep(1,g)
 
   # if PP_filt is not set to NULL --> keep only obs/cl in M step > PP_filt threshold
   if(!is.null(PP_filt)){
@@ -928,7 +929,7 @@ EM_run <- function(ncores,X=NA, y, k,
         clust = makeCluster(ncores)
         clusterEvalQ(cl=clust,library(FSCseq))
         clusterExport(cl=clust,varlist=c("XX","y","p","a","k","wts","keep","offsets",
-                                         "theta_list","coefs","phi","cl_phi","est_phi","est_covar",
+                                         "theta_list","coefs","phi","cl_phi","est_phi","est_covar","est_beta",
                                          "lambda","alpha","IRLS_tol","CDA_tol","maxit_IRLS","maxit_CDA",
                                          "disc_ids_list","Tau","par_X"),envir=environment())
         par_X_mb = parallel::parLapply(clust, mb_genes, M_step_par)
@@ -939,7 +940,7 @@ EM_run <- function(ncores,X=NA, y, k,
           M_step_par2(j, XX, y, p, a, k,
                       wts, keep, offsets,
                       theta_list, coefs, phi,
-                      cl_phi, est_phi, est_covar,
+                      cl_phi, est_phi, est_covar, est_beta,
                       lambda, alpha, IRLS_tol, CDA_tol, maxit_IRLS, maxit_CDA,
                       Tau, disc_ids_list, par_X)
         })
@@ -952,7 +953,7 @@ EM_run <- function(ncores,X=NA, y, k,
         par_X[[j]] <- M_step(X=XX, y_j=as.numeric(rep(y[j,],k)), p=p, j=j, a=a, k=k,
                              all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
                              theta=theta_list[[j]],coefs_j=coefs[j,],phi_j=phi[j,],
-                             cl_phi=cl_phi,est_covar=est_covar[j],
+                             cl_phi=cl_phi,est_covar=est_covar[j],est_beta=est_beta[j],
                              lambda=lambda,alpha=alpha,
                              IRLS_tol=IRLS_tol,maxit_IRLS=maxit_IRLS,
                              CDA_tol=CDA_tol,maxit_CDA=maxit_CDA)
@@ -1072,14 +1073,9 @@ EM_run <- function(ncores,X=NA, y, k,
                 mu=2^(coefs[,c] + cov_eff + offset_eff),log=TRUE)
       )
     }
-    if(trace){
-      cat(paste("pi: ",pi,"\n"))
-      cat(paste("rowSums(wts): ",rowSums(wts),"\n"))
-      cat(paste("rowSums(l): ",rowSums(l),"\n"))
-    }
+
     # store and check Q function
     Q[a]<- (log(pi)%*%rowSums(wts)) + sum(wts*l)
-    cat(paste("Q: ",Q[a],"\n"))
 
     # break condition for EM
     if(a>n_mb){
@@ -1268,77 +1264,235 @@ EM_run <- function(ncores,X=NA, y, k,
 #' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @export
-FSCseq_predict <- function(X=NULL,fit,cts_pred,SF_pred){
+FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
+                          cts_pred, SF_train=NULL, SF_pred){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
   # fit: Output of EM
   # cts_pred: Data to perform prediction on
   # SF_pred: SF's of new data
   # offsets: Additional offsets per sample can be incorporated
-  if(is.null(X)){
-    cat("No covariates specified. Predicting on cluster-specific intercept-only model.\n")
-  }else{
-    cat("Predicting, adjusting for input X...\n")
-    if (any(is.na(X))) {stop("Missing data (NA's) detected.  Take actions (e.g., removing cases, removing features, imputation) to eliminate missing data before passing X")}
-  }
 
+  # LATER::: p_covar: indicate which of the first gammas are non-batch covariates: need not be re-estimated.
+  ## RIGHT NOW:: estimating all non cluster-log2 mean covariates (batch and non-batch)
+
+  covars = !is.null(X)
+  idx=fit$discriminatory
+  if(sum(idx)==0){warning('No disc genes. Using all genes'); idx=rep(TRUE,nrow(cts_pred))}
+
+  if(covars){ cts = cbind(cts_train[idx,], cts_pred[idx,]) } else{ cts = cts_pred[idx,] }
+
+  unique_cls_ids = unique(fit$clusters)[order(unique(fit$clusters))]   # unique clusters, in increasing order
+  k=length(unique_cls_ids)
+
+  train_clusters = fit$clusters
+  for(i in 1:length(train_clusters)){
+    train_clusters[i] = which(unique_cls_ids==fit$clusters[i])     # renumber into 1,2,3,...,K. if already in this order, won't change anything
+  }
+  n_train = length(train_clusters)
+  n_pred = ncol(cts_pred)
+  n = ncol(cts)
+  g = sum(idx)
+  pi_all = fit$pi  # including penalized out clusters here. pi is changed later
+  B = length(unique(batch_train))
+  p_train = ncol(fit$coefs) - length(pi_all)   # number of non-log2 cluster means estimated in training
+
+  # apply(table(fit$clusters,cls),2,function(x){which(x==max(x))})      # returns
+  # cls_match_ids
 
   if(length(SF_pred) != ncol(cts_pred)){stop("length of prediction size factors must be the same as the number of columns in prediction data")}
 
-  idx=fit$discriminatory
-  if(sum(idx)==0){warning('No disc genes. Using all genes');idx=rep(TRUE,nrow(cts_pred))}
-  n=ncol(cts_pred)
-  cts_pred=matrix(cts_pred[idx,],ncol=n)      # subset to just disc genes found by FSCseq run
-  # g=nrow(cts_pred)
-  g=sum(idx)
-  pi=fit$pi
-  k=length(pi)
+  cl_X = matrix(0,nrow=k*n,ncol=k)
+  ident_k = diag(k)
+  for(i in 1:k){ cl_X[((i-1)*n+1):(i*n),] = matrix(rep(ident_k[i,],n),ncol=k,nrow=n,byrow=T) }
 
-  cl_phi=!is.null(dim(fit$phi))  # dimension of phi is null when gene-wise (vector)
+  #cts_pred=matrix(cts_pred[idx,],ncol=ncol(cts_pred))      # subset to just disc genes found by FSCseq run
+  #cts_train=matrix(cts_train[idx,],ncol=ncol(cts_train))
 
-  covars = !is.null(X)
+  cl_phi=(!is.null(dim(fit$phi)))^2  # dimension of phi is null when gene-wise (vector)
+
   if(covars){
-    p=ncol(X)
-    init_coefs=matrix(fit$coefs[idx,],nrow=sum(idx))
+    XX = do.call("rbind", replicate(k, X,simplify=FALSE))
+    # print(dim(cl_X))
+    # print(dim(XX))
+    XX = cbind(cl_X,XX)
+    p = ncol(XX) - k
+    coefs = matrix(0,nrow=g,ncol=k+p)
+    # coefs[,1:(k+p_train)] = fit$coefs[idx,1:(k+p_train)]
+    betas=fit$coefs[idx,unique_cls_ids]; gammas = fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]
+    coefs[,1:(k+p_train)] = cbind(betas,gammas)
+    coefs[,(k+p_train+1):ncol(coefs)] = rowMeans(fit$coefs[idx,(k+1):ncol(fit$coefs)])
+
+    ## Initialize weights here (how do I initialize for new samples??):
+    wts=matrix(0, nrow=k, ncol=n)
+
+    init_cls_pred = sample(1:k,ncol(cts_pred),replace=T)
+
+    # init_cls_pred = cls_pred ## TRUE INITIALIZATION
+    #table(train_clusters,cls) # cls==2 --> train_clusters==1, cls==1 --> train_clusters==2
+    # init_cls_pred[cls_pred==1]=2; init_cls_pred[cls_pred==2]=1    if using true initialization, need to worry about permutations..
+
+    init_cls = c(train_clusters, init_cls_pred)
+
+    for(c in 1:k){ wts[c,]=(init_cls==c)^2 }
+    wts[,1:ncol(cts_train)] = fit$wts[unique_cls_ids,]
+
+    #keep = wts > 0.001
+    keep = matrix(1,nrow=k,ncol=n)  # just use all samples in prediction (not as many samples, so it shouldn't be too time consuming)
+
   } else{
     p=0
-    init_coefs=matrix(fit$coefs[idx,1:k],nrow=sum(idx))
+    coefs=matrix(fit$coefs[idx,unique_cls_ids],nrow=sum(idx))
+    XX=cl_X
   }
+
+  # table(init_cls,c(cls,cls_pred))
+  # adjustedRandIndex(init_cls,c(cls,cls_pred))
+  # table(init_cls,apply(wts,2,which.max))
+  # adjustedRandIndex(init_cls,apply(wts,2,which.max))
 
   # fit is the output object from the EM() function
+  phi=if(cl_phi==0){matrix(fit$phi[idx], nrow=sum(idx), ncol=k)}else{matrix(fit$phi[idx,],nrow=sum(idx))}
 
-  init_phi=if(!cl_phi){fit$phi[idx]}else{matrix(fit$phi[idx,],nrow=sum(idx))}
+  if(is.null(SF_train)){SF_train = fit$size_factors}
+  offsets=log2(c(SF_train,SF_pred))
 
-  offsets=log2(SF_pred)
+  est_beta = rep(0,g)
+  est_phi = rep(0,g)                          # 1 for true, 0 for false
+  est_covar = if(covars){rep(1,g)}else{rep(0,g)}
+  #lambda=fit$lambda; alpha=fit$alpha    # not estimating beta, so penalty parameter values don't matter
+  lambda=0; alpha=0
+
+  nits=ifelse(covars,100,1)
+  # Tau=ifelse(covars,g^2,1); CEM=T
+  Tau=1; CEM=F
+
+  ###### INSERT LOOP HERE TO ESTIMATE NEW BATCH EFFECTS ######
+  ###### IF(covars): M STEP WITH EST_BETA=0, EST_PHI=0, EST_COVAR=1 ######
+  ######### NOTE: need to concatenate init_coefs (change this to "coefs) with new batch
+  ###### ELSE: CALCULATE l[c,i] AND COMPUTE WTS, and don't iterate #####
+
+  interm_cls = list()
+  delta_cls = rep(NA,nits-1)
+  for(a in 1:nits){
+    if(covars){
+      par_X=list(); temp_list=list(); nits_IRLS=rep(NA,g); nits_CDA=rep(NA,g)
+      pi=rowMeans(wts)
+      for(j in 1:g){
+        theta<-matrix(rep(0,times=k^2),nrow=k)
+        for(c in 1:k){
+          for(cc in 1:k){
+            # run just once in R, for initialization
+            if(cc==c){
+              theta[cc,c]=0
+            }else if(cc>c){
+              theta[cc,c]<-SCAD_soft_thresholding(coefs[j,cc]-coefs[j,c],lambda,alpha)
+            }else{theta[cc,c]=-theta[c,cc]}
+          }
+        }
+        # if(a==1){ ######## initialize batch effects #########
+        #   # library(MASS)
+        #   # X0 = (X-X[,1])[,-1]
+        #   # glm_fit0 = glm.nb(cts[j,] ~ 1 + X0 + offset(offsets + coefs[j,init_cls]))
+        #   # glm_fit = glm.nb(cts[j,] ~ 0 + X + offset(offsets + coefs[j,init_cls]))
+        #   covariate_X = XX[,(k+1):(k+p)]
+        #   # covariate_X0 = (covariate_X - covariate_X[,1])[,-1]
+        #   # glm_fit0 = glm.nb(as.integer(rep(cts[j,],k)) ~ 1 + covariate_X0 + offset(rep(offsets,k) + rep(coefs[j,1:k],each=n)),weights=c(t(wts)))  # no intercept
+        #   glm_fit = glm.nb(as.integer(rep(cts[j,],k)) ~ 0 + XX[,(k+1):(k+p)] + offset(rep(offsets,k) + rep(coefs[j,1:k],each=n)),weights=c(t(wts)))  # intercept
+        #
+        #   glm_fit = glm.nb(cts_train[idx,][j,] ~ 0 + as.factor(cls) + as.factor(batch_train) + offset(log2(SF_train)),
+        #                    init.theta = 1/phi[j,1])
+        #   log2(exp(glm_fit$coefficients)); 1/glm_fit$theta
+        #
+        #   glm_fit = glm.nb(cts[j,] ~ 0 + as.factor(init_cls) + as.factor(c(batch_train,batch_pred)) + offset(log2(c(SF_train, SF_pred))),
+        #                    init.theta = 1/phi[j,1])
+        #   log2(exp(glm_fit$coefficients)); 1/glm_fit$theta
+        #
+        #   coefs[j,(k+1):(k+p)] = glm_fit$coefficients
+        # }
 
 
-  # nb log(f_k(y_i))
-  l<-matrix(0,nrow=k,ncol=n)
-  if(covars){
-    covar_coefs = matrix(init_coefs[,-(1:k)],ncol=p)
-    cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
-  } else {cov_eff=matrix(0,nrow=n,ncol=g)}
+        ### Estimate all batch effects
 
-  for(i in 1:n){
-    for(c in 1:k){
-      if(cl_phi){
-        l[c,i]<-sum(dnbinom(cts_pred[,i],size=1/init_phi[,c],mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
-      } else if(!cl_phi){
-        l[c,i]<-sum(dnbinom(cts_pred[,i],size=1/init_phi,mu=2^(init_coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+        par_X[[j]] <- M_step(X=as.matrix(XX), y_j=as.numeric(rep(cts[j,],k)), p=p, j=j, a=a, k=k,
+                               all_wts=wts, keep=c(t(keep)), offset=rep(offsets,k),
+                               theta=theta,coefs_j=coefs[j,],phi_j=phi[j,],
+                               cl_phi=cl_phi,est_covar=est_covar[j],est_beta=est_beta[j],
+                               lambda=lambda,alpha=alpha,
+                               IRLS_tol=1e-4,maxit_IRLS=50L,
+                               CDA_tol=1e-4,maxit_CDA=50L)
+        coefs[j,] <- par_X[[j]]$coefs_j
+
+
+        if(est_phi[j]==1){
+          ids = (c(t(keep))==1)
+          mu = 2^(XX %*% par_X[[j]]$coefs_j + offsets)
+
+          phi_g_temp=phi.ml(y=as.integer(rep(cts[j,],k))[ids],
+                            mu=mu[ids],
+                            dfr=sum(ids)-1,
+                            weights=c(t(wts))[ids],
+                            t0=1/phi[j,1],
+                            limit=25,
+                            trace=F)
+          par_X[[j]]$phi_j = rep(phi_g_temp,k)
+        } else{par_X[[j]]$phi_j = phi[j,]}
+
+        #coefs[j,(ncol(coefs)-p_pred+1):ncol(coefs)] = par_X[[j]]$coefs_j[(ncol(coefs)-p_pred+1):ncol(coefs)]
+        temp_list[[j]] <- if(p>0){cbind(par_X[[j]]$temp_beta, par_X[[j]]$temp_gamma)}else{par_X[[j]]$temp_beta}
+        if(cl_phi==1){
+          phi[j,] <- par_X[[j]]$phi_j
+        } else if(cl_phi==0){
+          phi[j,] <- (par_X[[j]]$phi_j)[1]
+        }
+        nits_IRLS[j]=par_X[[j]]$nits_IRLS
+        nits_CDA[j]=par_X[[j]]$nits_CDA
+
       }
-    }    # subtract out 0.1 that was added earlier
+    }
+
+      # nb log(f_k(y_i))
+      l<-matrix(0,nrow=k,ncol=n)
+      if(covars){
+        covar_coefs = matrix(coefs[,-(1:k)],ncol=p)
+        cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
+      } else {cov_eff=matrix(0,nrow=n,ncol=g)}
+
+      for(i in 1:n){
+        for(c in 1:k){
+          if(cl_phi){
+            l[c,i]<-sum(dnbinom(cts[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
+          } else if(!cl_phi){
+            l[c,i]<-sum(dnbinom(cts[,i],size=1/phi,mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+          }
+        }    # subtract out 0.1 that was added earlier
+      }
+
+      Estep_fit=E_step(wts,l,pi,CEM=CEM,Tau,1e-3)
+      #keep=matrix(1,nrow=nrow(wts),ncol=ncol(wts))
+      keep=Estep_fit$keep
+      wts=Estep_fit$wts; Tau=Estep_fit$Tau
+
+      wts[,1:ncol(cts_train)] = fit$wts[unique_cls_ids,]
+
+      interm_cls[[a]] = apply(wts,2,which.max)
+      # interm_ARI = adjustedRandIndex(interm_cls,c(cls,cls_pred))
+      # interm_message = sprintf("it%d ARI: %f", a, interm_ARI)
+      # print(paste(interm_message,"Tau:",Tau))
+
+      # sum number of samples whose cluster labels change, and break if no change for 10 iterations
+      if(a>1){
+        delta_cls[a-1] = sum((interm_cls[[a]] != interm_cls[[a-1]])^2)
+      }
+      if(a>10){
+        if(all(delta_cls[(a-10):(a-1)] == 0)){
+          break
+        }
+      }
   }
 
-  # E step
-  # Estimate weights
-  wts = matrix(0,nrow=k,ncol=n)
-  logdenom = apply(log(pi) + l, 2,logsumexpc)
-  for(c in 1:k){
-    wts[c,]<-exp(log(pi[c])+l[c,]-logdenom)
-  }
+  final_clusters = apply(wts,2,which.max)
 
-  final_clusters<-rep(0,times=n)
-  for(i in 1:n){
-    final_clusters[i]<-which.max(wts[,i])
-  }
-
-  return(list(clusters=final_clusters,wts=wts))
+  return(list(train_cls=train_clusters,
+              pred_cls=final_clusters[(n_train+1):n],
+              train_wts=wts[,1:n_train],
+              pred_wts=wts[,(n_train+1):n]))
 }
