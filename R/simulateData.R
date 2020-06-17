@@ -2,10 +2,15 @@
 simulate_counts=function(K,B,n,g,
                          cls,SF,
                          beta,phi,LFCg_mat,
-                         batch,LFCb,sigma_b,sigma_g,DEb_ID,disp){     # batch of 0: no batch effect, batch of 1: yes effect
+                         batch,batch_effects,sigma_b,sigma_g,DEb_ID,disp){     # batch of 0: no batch effect, batch of 1: yes effect
   # center batch at 0: lower batch gets downregulated, higher batch gets upregulated
   # if B=1, batch_eff = 0 with some noise by sigma_b
-  batch_eff = (batch-(B-1)/2)*LFCb+rnorm(n,0,sigma_b)
+
+  #batch_eff = (batch-(B-1)/2)*LFCb+rnorm(n,0,sigma_b)  # previous parametrization: -0.5*LFCb or +0.5*LFCb for B=2, pred had +0*LFCb
+  #batch_effects = c(-1,1) ## FOR B=2. Need general way --> user input.
+  # batch_effects should be the same length as the number of batches, or length(unique(batch))
+  batch_eff = batch_effects[batch+1] # batch goes from 0, 1, ... for batch_pred, just 0 input for batch --> 1 batch.
+
   cts <- matrix(rep(0,times=g*n),nrow=g)
 
   b = beta + LFCg_mat # + noise_mat
@@ -15,20 +20,14 @@ simulate_counts=function(K,B,n,g,
   }
 
   sigma_mat = matrix(rnorm(n*g,0,sigma_g),nrow=g,ncol=n)
-  # for(j in 1:g){
-  #   for(i in 1:n){
-  #     if(DEb_ID[j]){      # if this is a gene that is differentially expressed due to batch
-  #       cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(0,1,sigma_g) + batch_eff[i]) )
-  #     } else{
-  #       cts[j,i] = rnbinom( 1, size = 1/phi_mat[j,cls[i]], mu = SF[i]*2^(b[j,cls[i]] + rnorm(0,1,sigma_g)) )
-  #     }
-  #   }
-  # }
+  mu_mat = matrix(0,nrow=g,ncol=n)
   for(i in 1:n){
-    cts[,i] = rnbinom( g, size = 1/phi_mat[,cls[i]], mu = SF[i]*2^(b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i]) )
+    mu_mat[,i] = SF[i]*2^(b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i])  # this was how data was simulated, and is consistent with DESeq2 paper
+    #mu_mat[,i] = 2^(SF[i] + b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i])     ##### this shouldn't be right, but empirically giving better results?! why?
+    cts[,i] = rnbinom( g, size = 1/phi_mat[,cls[i]], mu = mu_mat[,i] )
   }
 
-  return(cts)
+  return(list(cts=cts,mu_mat=mu_mat,sigma_mat=sigma_mat))
 }
 
 #' Simulate RNA-seq bulk gene expression count data
@@ -54,6 +53,8 @@ simulate_counts=function(K,B,n,g,
 #' @param nsims integer, number of datasets to simulate given the input conditions. Default is 25.
 #' @param disp string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'
 #' @param n_pred integer, number of samples in simulated prediction dataset. Default is 25
+#' @param sim_batch_pred boolean: FALSE (no batch effect for prediction samples) or TRUE (batch effect)
+#' @param LFCb_pred LFCb for batch-affected genes in prediction set. By default, = max(batch_effects) + LFCb/2.
 #' @param save_file boolean: TRUE (save each set of simulations)
 #' @param save_dir string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'
 #' @param save_pref string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'
@@ -67,11 +68,12 @@ simulate_counts=function(K,B,n,g,
 #' sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
 #'
 #' @export
-simulateData<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
-                        LFCg=1, pDEg=0.05, sigma_g=0.1,
-                        LFCb=1, pDEb=0.5, sigma_b=0,
-                        beta0=12, phi0=0.35, SF=NULL,
-                        nsims=25, disp="gene", n_pred=25, save_file=TRUE, save_dir=NULL, save_pref=NULL){
+simulateDataBatch<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
+                            LFCg=1, pDEg=0.05, sigma_g=0.1,
+                            LFCb=1, pDEb=0.5, sigma_b=0,
+                            beta0=12, phi0=0.35, SF=NULL,
+                            nsims=25, disp="gene", n_pred=25, sim_batch_pred=FALSE, LFCb_pred=NULL,
+                            save_file=TRUE, save_dir=NULL, save_pref=NULL){
   if(B==1){LFCb=0}
 
   if(save_file){
@@ -177,26 +179,41 @@ simulateData<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
       LFCg_mat[j,sample(1:K,1,replace=T)] = signLFC*LFCg
     }
 
-    cts<-simulate_counts(K=K,B=B,n=n,g=g,
+    # make batch_effects be centered around LFCb, +- 0.5 between each consecutive batch
+
+    batch_effects = LFCb*( c(1:B)-mean(c(1:B)) )
+
+    fit<-simulate_counts(K=K,B=B,n=n,g=g,
                          cls=cls,SF=SF,
                          beta=beta,phi=phi,LFCg_mat=LFCg_mat,#noise_mat=noise_mat,
-                         batch=batch,LFCb=LFCb,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+                         batch=batch,batch_effects=batch_effects,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+    cts = fit$cts; mu_mat = fit$mu_mat; sigma_mat=fit$sigma_mat
 
     cls_pred=sample(1:K,n_pred,replace=T,prob=pK)
-    batch_pred=rep(0,n_pred)     # other batches are centered around 0. prediction batch assumed to be in the middle --> batch=0
-    cts_pred <- simulate_counts(K=K,B=1,n=n_pred,g=g,
+
+    batch_pred = rep(B, n_pred)     # train batch: 0, 1, .. B-1. pred_batch: B. right now: ONLY ONE BATCH simulated for prediction set
+    batch_effects_pred =
+      if(sim_batch_pred){
+        if(is.null(LFCb_pred)){
+          max(batch_effects) + LFCb/2 # if batch effects were (-1,1), then this batch effect is 2: "slightly greater" effect. Is this even possible to correct for??
+        } else{LFCb_pred}
+      }else{ 0 }
+    fit_pred <- simulate_counts(K=K,B=1,n=n_pred,g=g,
                                 cls=cls_pred,SF=SF_pred,
                                 beta=beta,phi=phi,LFCg_mat=LFCg_mat,#noise_mat=noise_mat,
-                                batch=batch_pred,LFCb=LFCb,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+                                batch=rep(0,n_pred), batch_effects = batch_effects_pred,sigma_b=sigma_b,sigma_g=sigma_g,DEb_ID=DEb_ID,disp=disp) # gene-specific disp param
+
+    cts_pred = fit_pred$cts; mu_mat_pred = fit_pred$mu_mat; sigma_mat_pred = fit_pred$sigma_mat
 
     sim_params=list(K=K,B=B,g=g,n=n,n_pred=n_pred,pK=pK,pB=pB,
                     LFCg=LFCg,pDEg=pDEg,sigma_g=sigma_g,
                     LFCb=LFCb,pDEb=pDEb,sigma_b=sigma_b,
+                    batch_effects=batch_effects,batch_effects_pred=batch_effects_pred,
                     beta=beta,phi=phi,disp=disp,
                     LFCg_mat=LFCg_mat,
-                    DEb_ID=DEb_ID)
+                    DEb_ID=DEb_ID, mu_mat=mu_mat, mu_mat_pred=mu_mat_pred, sigma_mat=sigma_mat, sigma_mat_pred=sigma_mat_pred)
     sim.dat=list(cts=cts, cts_pred=cts_pred,
-                 cls=cls, cls_pred=cls_pred, batch=batch,
+                 cls=cls, cls_pred=cls_pred, batch=batch, batch_pred=batch_pred,
                  SF=SF, SF_pred=SF_pred,
                  DEg_ID=DEg_ID, sim_params=sim_params)
 
