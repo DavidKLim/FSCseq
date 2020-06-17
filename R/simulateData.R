@@ -68,7 +68,7 @@ simulate_counts=function(K,B,n,g,
 #' sim.dat = FSCseq::simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
 #'
 #' @export
-simulateDataBatch<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
+simulateData<-function(K=2, B=1, g=10000, n=50, pK=NULL, pB=NULL,
                             LFCg=1, pDEg=0.05, sigma_g=0.1,
                             LFCb=1, pDEb=0.5, sigma_b=0,
                             beta0=12, phi0=0.35, SF=NULL,
