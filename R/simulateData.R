@@ -54,7 +54,7 @@ simulate_counts=function(K,B,n,g,
 #' @param disp string, either 'gene' or 'cluster' to simulate gene-level or cluster-level dispersions. Default is gene-level. Input phi must be g x K matrix if disp='cluster'
 #' @param n_pred integer, number of samples in simulated prediction dataset. Default is 25
 #' @param sim_batch_pred boolean: FALSE (no batch effect for prediction samples) or TRUE (batch effect)
-#' @param LFCb_pred LFCb for batch-affected genes in prediction set. By default, = max(batch_effects) + LFCb/2.
+#' @param LFCb_pred LFCb for batch-affected genes in prediction set. By default (NULL), = max(batch_effects) + LFCb/2: larger batch effect than training.
 #' @param save_file boolean: TRUE (save each set of simulations)
 #' @param save_dir string (optional): directory to save files. Default: 'Simulations/<sigma_g>_<sigma_b>/B<B>'
 #' @param save_pref string (optional): prefix of file name to save simulated data to. Default: '<K>_<n>_<LFCg>_<pDEg>_<beta0>_<phi0>'
