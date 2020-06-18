@@ -321,7 +321,7 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
   cat("Computing predictive posterior probabilities...\n")
 
   #fit=res$results$fit; cts_train=cts; batch_train=batch
-  res_pred = FSCseq_predict(X=X, p_covar=p_covar,
+  res_pred = FSCseq::FSCseq_predict(X=X, p_covar=p_covar,
                             fit=res$results$fit, cts_train=cts_train[filt_idx,], #batch_train=batch_train, batch_pred=batch_pred,
                             cts_pred=cts_pred[filt_idx,], SF_train=SF_train, SF_pred=SF_pred)
   covariates = list(batch_train = batch_train,
