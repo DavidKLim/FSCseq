@@ -1292,7 +1292,7 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
   n = ncol(cts)
   g = sum(idx)
   pi_all = fit$pi  # including penalized out clusters here. pi is changed later
-  B = length(unique(batch_train))
+  # B = length(unique(batch_train))
   p_train = ncol(fit$coefs) - length(pi_all)   # number of non-log2 cluster means estimated in training
 
   # apply(table(fit$clusters,cls),2,function(x){which(x==max(x))})      # returns
