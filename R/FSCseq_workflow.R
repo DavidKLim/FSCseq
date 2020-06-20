@@ -35,7 +35,7 @@
 FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = NULL, true_disc = NULL,
                            method = "CEM", n_rinits = 1, med_filt = 500, MAD_filt = 50, K_search = c(2:6),
                            lambda_search = seq(0.25, 5, 0.25), alpha_search = c(0.01, seq(0.05, 0.5, 0.05)),
-                           OS_save = TRUE, trace = F, trace.prefix = "", nMB = 5, dir_name = "Saved_Results") {
+                           OS_save = T, tune_save=F, trace = F, trace.prefix = "", nMB = 5, dir_name = "Saved_Results") {
   ifelse(!dir.exists(dir_name),
          dir.create(dir_name, recursive = T),
          FALSE)
@@ -146,13 +146,21 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
           init_cls = list_res_tune[[index - 1]]$clusters
           init_wts = list_res_tune[[index - 1]]$wts
         }
-        res = FSCseq::FSCseq(ncores = ncores, X = X, y = cts[idx, ], k = K_search[c],
+        fname = sprintf("%s/tune%d_%f_%f.out", dir_name, K_search[c],alpha_search[a],lambda_search[l])
+        if(file.exists(fname)){
+          load(fname)
+        }else{
+          res = FSCseq::FSCseq(ncores = ncores, X = X, y = cts[idx, ], k = K_search[c],
                              lambda = lambda_search[l], alpha = alpha_search[a],
                              size_factors = SF, norm_y = norm_y[idx, ],
                              true_clusters = true_cls, true_disc = true_disc[idx],
                              init_parms = TRUE, init_coefs = init_coefs, init_phi = init_phi,
                              init_cls = init_cls, init_wts = init_wts, trace = trace,
                              trace.file = trace.file, mb_size = sum(idx))
+          if(tune_save){
+            save(res,file=fname)
+          }
+        }
 
         list_res_tune[[index]] = res
         BICs[index, ] = c(K_search[c], alpha_search[a], lambda_search[l], res$BIC)
@@ -178,6 +186,7 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
     discriminatory = discriminatory,
     fit = optim_res
   )
+
   if(OS_save){
     cat("Removing saved interim results...\n")
     for(c in 1:length(K_search)){
@@ -185,8 +194,14 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
       file.remove(fname)
     }
   }
+  if(tune_save){
+    cat("Removing saved interim results...\n")
+    for(c in 1:length(K_search)){for(a in 1:length(alpha_search)){for(l in 1:length(lambda_search)){
+      fname = sprintf("%s/tune%d_%f_%f.out", dir_name, K_search[c],alpha_search[a],lambda_search[l])
+      file.remove(fname)
+    }}}
+  }
   return(list(processed.dat = processed.dat, results = results))
-
 }
 
 #' Minimal workflow for FSCseq_predict
