@@ -31,11 +31,15 @@
 #' \dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
 #' \dontrun{summary(FSCseq_workflow$results)}
 #'
+#' @importFrom mclust adjustedRandIndex
 #' @export
 FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = NULL, true_disc = NULL,
                            method = "CEM", n_rinits = 1, med_filt = 500, MAD_filt = 50, K_search = c(2:6),
                            lambda_search = seq(0.25, 5, 0.25), alpha_search = c(0.01, seq(0.05, 0.5, 0.05)),
-                           OS_save = T, tune_save=F, trace = F, trace.prefix = "", nMB = 5, dir_name = "Saved_Results") {
+                           OS_save = T, tune_save=F, trace = F, trace.prefix = "", nMB = 5, dir_name = "Saved_Results",
+                           coding="reference") {
+
+  # coding = "cellmeans" or "reference"  EXPERIMENTAL
   ifelse(!dir.exists(dir_name),
          dir.create(dir_name, recursive = T),
          FALSE)
@@ -57,10 +61,19 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 
   # X1: Design matrix for batch
   if (length(unique(batch)) != 1) {
+    B=length(unique(batch))
     ##more than one batch
-    X1 = matrix(nrow = ncol(cts), ncol = length(unique(batch)))
-    for (i in 1:length(unique(batch))) {
-      X1[, i] = (batch == unique(batch)[i]) ^ 2    # cell-means coding of batch
+    if(coding=="cellmeans"){
+      X1 = matrix(nrow = ncol(cts), ncol = B)
+      for (i in 1:B) {
+        X1[, i] = (batch == unique(batch)[i]) ^ 2    # cell-means coding of batch
+      }
+    } else if(coding=="reference"){
+      X1 = matrix(0,nrow=ncol(cts),ncol=B-1)
+      for(b in 1:(B-1)){
+        X1[batch==b,b] = 1
+        X1[,b] = scale(X1[,b],center=T,scale=T)
+      }
     }
     # if(min(batch)!=0){batch = batch - min(batch)}
     # X1 = matrix(nrow = ncol(cts), ncol = length(unique(batch))-1)  # reference-cell coding. batch=0 is the reference: to do this, I have to estimate an intercept in M-step!!
@@ -165,7 +178,14 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
         list_res_tune[[index]] = res
         BICs[index, ] = c(K_search[c], alpha_search[a], lambda_search[l], res$BIC)
         if (trace) {
-          print(BICs[index, ])
+          message = paste("K=", BICs[index,1],
+                          ", a=", BICs[index,2],
+                          ", l=", BICs[index,3],
+                          ", BIC=", BICs[index,4])
+          if(!is.null(true_cls)){
+            message = paste(message, ", ARI=",adjustedRandIndex(res$clusters,true_cls))
+          }
+          print(message)
         }
         index = index + 1
       }
@@ -249,7 +269,7 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 
   ############################################ NEW ###################################################
 FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_train=NULL, batch_train=NULL,
-                                   X_covar_pred = NULL, cts_pred, batch_pred=NULL) {
+                                   X_covar_pred = NULL, cts_pred, batch_pred=NULL, coding="reference") {
   #### fit = straight from FSCseq_workflow output
   #### X_train and X_pred are covariates
   # idx: ids filtered by rowMedians and MAD
@@ -319,8 +339,14 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
       if(min(batch_pred) > max(batch_train)+1){ batch_pred = batch_pred - (min(batch_pred) - max(batch_train) - 1) }
       batch = c(batch_train, batch_pred)
     }
-    X_batch = matrix(0, nrow=n, ncol=length(unique(batch)))
-    for (i in 1:length(unique(batch))) { X_batch[, i] = (batch == unique(batch)[i]) ^ 2 }
+    B = length(unique(batch))
+    if(coding=="cellmeans"){
+      X_batch = matrix(0, nrow=n, ncol=B)
+      for (b in 1:B) { X_batch[, b] = (batch == unique(batch)[b]) ^ 2 }
+    } else if(coding=="reference"){
+      X_batch = matrix(0,nrow=length(batch),ncol=B-1)
+      for ( b in 1:(B-1) ) { X_batch[batch==b, b] = 1; X_batch[,b] = scale(X_batch[,b]) }
+    }
   }
 
   if(is.null(X_batch) & is.null(X_covar)){

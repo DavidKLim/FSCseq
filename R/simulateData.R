@@ -22,8 +22,8 @@ simulate_counts=function(K,B,n,g,
   sigma_mat = matrix(rnorm(n*g,0,sigma_g),nrow=g,ncol=n)
   mu_mat = matrix(0,nrow=g,ncol=n)
   for(i in 1:n){
-    mu_mat[,i] = SF[i]*2^(b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i])  # this was how data was simulated, and is consistent with DESeq2 paper
-    #mu_mat[,i] = 2^(SF[i] + b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i])     ##### this shouldn't be right, but empirically giving better results?! why?
+    sigma_mat[,i] = rnorm(g,0,sigma_g)
+    mu_mat[,i] = SF[i]*2^(b[,cls[i]] + sigma_mat[,i] + DEb_ID*batch_eff[i])
     cts[,i] = rnbinom( g, size = 1/phi_mat[,cls[i]], mu = mu_mat[,i] )
   }
 

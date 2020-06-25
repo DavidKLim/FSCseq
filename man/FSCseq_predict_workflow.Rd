@@ -12,7 +12,8 @@ FSCseq_predict_workflow(
   batch_train = NULL,
   X_covar_pred = NULL,
   cts_pred,
-  batch_pred = NULL
+  batch_pred = NULL,
+  coding = "reference"
 )
 }
 \arguments{

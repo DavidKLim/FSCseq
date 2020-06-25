@@ -40,7 +40,6 @@ logsumexpc=function(v){
 #'
 #' @return theta
 #'
-#' @importFrom Rfast Digamma Trigamma
 theta.ml2=function (y, mu, n = sum(weights), weights, t0=0, limit = 10, eps = .Machine$double.eps^0.25,
                     trace = FALSE)
 {
@@ -51,11 +50,11 @@ theta.ml2=function (y, mu, n = sum(weights), weights, t0=0, limit = 10, eps = .M
   # info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
   #                                                                      y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
   #                                                                                                                           th)^2)) + lambda}
-  score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (Rfast::Digamma(th +
-                                                                      y) - Rfast::Digamma(th) + log(th) + 1 - log(th + mu) - (y +
+  score <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (digamma(th +
+                                                                      y) - digamma(th) + log(th) + 1 - log(th + mu) - (y +
                                                                                                                          th)/(mu + th))) + th*lambda}
-  info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-Rfast::Trigamma(th +
-                                                                       y) + Rfast::Trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
+  info <- function(n, th, mu, y, w,lambda=1E-25) {sum(w * (-trigamma(th +
+                                                                       y) + trigamma(th) - 1/th + 2/(mu + th) - (y + th)/(mu +
                                                                                                                             th)^2)) + lambda}
   if (inherits(y, "lm")) {
     mu <- y$fitted.values
@@ -169,12 +168,12 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
     for(c in 1:k){
       wts[c,]<-exp((1/Tau)*(log(pi[c])+l[c,])-logdenom)
     }
-    #if(Tau>1){
+    if(Tau>1){
       Tau = 0.9*Tau
-    #} else{
-    #  Tau=1       # after Tau hits 1 --> EM (off)
-    #  CEM=F
-    #}
+    } else{
+     Tau=1       # after Tau hits 1 --> EM (off)
+     CEM=F
+    }
   }
 
   if(CEM){
@@ -184,6 +183,28 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
       set.seed(i) # for reproducibility. stabilizes param ests in beginning iterations
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
+    # seed_mult=1
+    # # have one sample per cluster --> stability in CEM
+    # while(any(rowSums(draw_wts)==0)){
+    #   #if(trace){cat("Drawing again",seed_mult,"\n")}
+    #   for(i in 1:n){
+    #     set.seed(seed_mult*n+i)
+    #     for(c in 1:k){
+    #       if(wts[c,i]<=(1E-50*10^seed_mult) & seed_mult<=48){
+    #         wts[c,i]=1E-50*10^seed_mult
+    #       } else if(wts[c,i]>=(1-(1E-50*10^seed_mult)) & seed_mult<=48){
+    #         wts[c,i]=1-1E-50*10^seed_mult
+    #       }
+    #     }
+    #     draw_wts[,i] = rmultinom(1,1,wts[,i])
+    #   }
+    #   seed_mult=seed_mult+1
+    #   # if no sample in one cluster still, have last sample's PP=1/k for all cls
+    #   if(seed_mult>250){
+    #     draw_wts[,n]=rep(1/k,k)
+    #     break
+    #   }
+    # }
     wts=draw_wts
   }
 
@@ -787,7 +808,7 @@ EM_run <- function(ncores,X=NA, y, k,
   diff_phi=matrix(0,nrow=maxit_EM,ncol=g)
 
   est_phi=rep(1,g)                          # 1 for true, 0 for false
-  est_covar = ifelse(covars,rep(1,g),rep(0,g))
+  est_covar = if(covars){rep(1,g)}else{rep(0,g)}
   est_beta = rep(1,g)
 
   # if PP_filt is not set to NULL --> keep only obs/cl in M step > PP_filt threshold
@@ -913,7 +934,7 @@ EM_run <- function(ncores,X=NA, y, k,
     # }
 
     pi=rowMeans(wts)
-    pi[pi==0]=1e-50; pi[pi==1]=1-1e-50  # for stability in log(pi) in Q function
+    pi[pi<1e-6]=1e-6; pi[pi>(1-1e-6)]=1-1e-6  # for stability in log(pi) in Q function
 
     # M step
     Mstart=as.numeric(Sys.time())
