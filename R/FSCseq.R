@@ -1328,7 +1328,8 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
   #cts_pred=matrix(cts_pred[idx,],ncol=ncol(cts_pred))      # subset to just disc genes found by FSCseq run
   #cts_train=matrix(cts_train[idx,],ncol=ncol(cts_train))
 
-  cl_phi=(!is.null(dim(fit$phi)))^2  # dimension of phi is null when gene-wise (vector)
+  # cl_phi=(!is.null(dim(fit$phi)))^2  # dimension of phi is null when gene-wise (vector)
+  cl_phi=0
 
   if(covars){
     XX = do.call("rbind", replicate(k, X,simplify=FALSE))
@@ -1340,7 +1341,9 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
     # coefs[,1:(k+p_train)] = fit$coefs[idx,1:(k+p_train)]
     betas=fit$coefs[idx,unique_cls_ids]; gammas = fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]
     coefs[,1:(k+p_train)] = cbind(betas,gammas)
-    coefs[,(k+p_train+1):ncol(coefs)] = rowMeans(fit$coefs[idx,(k+1):ncol(fit$coefs)])
+
+    # initialize estimates of new batch effects as the mean of the other batch effects across batches for each gene
+    coefs[,(k+p_train+1):ncol(coefs)] <- if((k+1) == ncol(fit$coefs)){ fit$coefs[idx,(k+1):ncol(fit$coefs)] } else{rowMeans(fit$coefs[idx,(k+1):ncol(fit$coefs)])}
 
     ## Initialize weights here (how do I initialize for new samples??):
     wts=matrix(0, nrow=k, ncol=n)
