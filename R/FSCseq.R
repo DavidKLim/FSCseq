@@ -1313,6 +1313,7 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
   n = ncol(cts)
   g = sum(idx)
   pi_all = fit$pi  # including penalized out clusters here. pi is changed later
+
   # B = length(unique(batch_train))
   p_train = ncol(fit$coefs) - length(pi_all)   # number of non-log2 cluster means estimated in training
 
@@ -1343,7 +1344,7 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
     coefs[,1:(k+p_train)] = cbind(betas,gammas)
 
     # initialize estimates of new batch effects as the mean of the other batch effects across batches for each gene
-    coefs[,(k+p_train+1):ncol(coefs)] <- if((k+1) == ncol(fit$coefs)){ fit$coefs[idx,(k+1):ncol(fit$coefs)] } else{rowMeans(fit$coefs[idx,(k+1):ncol(fit$coefs)])}
+    coefs[,(k+p_train+1):ncol(coefs)] <- if((length(pi_all)+1) == ncol(fit$coefs)){ fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)] } else{rowMeans(fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)])}
 
     ## Initialize weights here (how do I initialize for new samples??):
     wts=matrix(0, nrow=k, ncol=n)

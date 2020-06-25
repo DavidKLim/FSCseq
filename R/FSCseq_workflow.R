@@ -37,7 +37,7 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
                            method = "CEM", n_rinits = 1, med_filt = 500, MAD_filt = 50, K_search = c(2:6),
                            lambda_search = seq(0.25, 5, 0.25), alpha_search = c(0.01, seq(0.05, 0.5, 0.05)),
                            OS_save = T, tune_save=F, trace = F, trace.prefix = "", nMB = 5, dir_name = "Saved_Results",
-                           coding="cellmeans") {
+                           coding="reference") {
 
   # coding = "cellmeans" or "reference"  EXPERIMENTAL
   ifelse(!dir.exists(dir_name),
@@ -269,7 +269,7 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 
   ############################################ NEW ###################################################
 FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_train=NULL, batch_train=NULL,
-                                   X_covar_pred = NULL, cts_pred, batch_pred=NULL, coding="cellmeans") {
+                                   X_covar_pred = NULL, cts_pred, batch_pred=NULL, coding="reference") {
   #### fit = straight from FSCseq_workflow output
   #### X_train and X_pred are covariates
   # idx: ids filtered by rowMedians and MAD
