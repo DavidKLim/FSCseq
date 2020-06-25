@@ -65,14 +65,14 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
     ##more than one batch
     if(coding=="cellmeans"){
       X1 = matrix(nrow = ncol(cts), ncol = B)
-      for (i in 1:B) {
-        X1[, i] = (batch == unique(batch)[i]) ^ 2    # cell-means coding of batch
+      for (b in 1:B) {
+        X1[, b] = (batch == unique(batch)[b]) ^ 2    # cell-means coding of batch
       }
     } else if(coding=="reference"){
       X1 = matrix(0,nrow=ncol(cts),ncol=B-1)
       for(b in 1:(B-1)){
-        X1[batch==b,b] = 1
-        X1[,b] = scale(X1[,b],center=T,scale=T)
+        X1[batch==unique(batch)[b], b] = 1
+        X1[, b] = scale(X1[, b],center=T,scale=T)
       }
     }
     # if(min(batch)!=0){batch = batch - min(batch)}
@@ -345,7 +345,7 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
       for (b in 1:B) { X_batch[, b] = (batch == unique(batch)[b]) ^ 2 }
     } else if(coding=="reference"){
       X_batch = matrix(0,nrow=length(batch),ncol=B-1)
-      for ( b in 1:(B-1) ) { X_batch[batch==b, b] = 1; X_batch[,b] = scale(X_batch[,b]) }
+      for ( b in 1:(B-1) ) { X_batch[batch == unique(batch)[b], b] = 1; X_batch[,b] = scale(X_batch[,b]) }
     }
   }
 
