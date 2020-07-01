@@ -1107,7 +1107,13 @@ EM_run <- function(ncores,X=NA, y, k,
           # check Q function convergence across n_mb iterations. if mb_size = g/5, then check every 5 iters
           finalwts<-wts
           break
-        }}}
+        } else if(all(cl_agreement[(a-n_mb):a]==1) & Tau==1){
+          # if cls are not changing for a while
+          finalwts<-wts
+          break
+        }
+      }
+    }
     if(a==maxit_EM){
       finalwts<-wts
       if(trace){warning("Reached max iterations.")}
