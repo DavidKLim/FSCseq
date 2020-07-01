@@ -1109,7 +1109,8 @@ EM_run <- function(ncores,X=NA, y, k,
           break
         }
       }
-    }else if(a>10){if(all(cl_agreement[(a-9):a]==1) & Tau==1){
+    }
+    if(a>10){if(all(cl_agreement[(a-9):a]==1) & Tau==1){
       # if cls are not changing for a while
       finalwts<-wts
       break
