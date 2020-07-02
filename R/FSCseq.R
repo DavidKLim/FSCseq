@@ -485,7 +485,7 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
   # init_cls: Initial clustering
   # n_rinits: Number of initial clusterings searched with maxit=15. More initializations = more chance to attain global max
 
-  start_FSC = as.numeric(Sys.time())
+  start_FSC = Sys.time()
 
   n = ncol(y)
   g = nrow(y)
@@ -665,8 +665,8 @@ FSCseq<-function(ncores=1,X=NULL, y, k,
                  EM_tol=EM_tol,IRLS_tol=IRLS_tol,CDA_tol=CDA_tol,
                  trace=trace,mb_size=mb_size,PP_filt=PP_filt)
 
-  end_FSC = as.numeric(Sys.time())
-  results$total_time_elap = end_FSC-start_FSC
+  end_FSC = Sys.time()
+  results$total_time_elap = as.numeric(end_FSC-start_FSC,units="secs")
 
   if(trace){
     if(!is.null(trace.file)){
@@ -839,11 +839,11 @@ EM_run <- function(ncores,X=NA, y, k,
   ########### M / E STEPS #########
   for(a in 1:maxit_EM){
 
-    EMstart= as.numeric(Sys.time())
+    EMstart= Sys.time()
 
     prev_clusters = apply(wts,2,which.max)     # set previous clusters (or initial if a=1)
     if(a==1){         # Initializations for 1st EM iteration
-      start=as.numeric(Sys.time())
+      start=Sys.time()
       if(init_parms){
         coefs=init_coefs
         if(cl_phi==0){
@@ -905,9 +905,9 @@ EM_run <- function(ncores,X=NA, y, k,
         #disc_ids[j]=any(theta_list[[j]]!=0)
       }
 
-      end=as.numeric(Sys.time())
+      end=Sys.time()
       if(trace){
-        cat(paste("Parameter Estimates Initialization Time Elapsed:",end-start,"seconds.\n"))
+        cat(paste("Parameter Estimates Initialization Time Elapsed:",as.numeric(end-start,units="secs"),"seconds.\n"))
         cat(paste("Initial coefs (top/bottom 3):\n"))
         write.table(head(coefs,n=3),quote=F)
         write.table(tail(coefs,n=3),quote=F)
@@ -937,7 +937,7 @@ EM_run <- function(ncores,X=NA, y, k,
     pi[pi<1e-6]=1e-6; pi[pi>(1-1e-6)]=1-1e-6  # for stability in log(pi) in Q function
 
     # M step
-    Mstart=as.numeric(Sys.time())
+    Mstart=Sys.time()
 
     if(!is.null(mb_size)){
       mb_genes = sample(1:g,mb_size,replace=F)
@@ -993,8 +993,8 @@ EM_run <- function(ncores,X=NA, y, k,
         } else{par_X[[j]]$phi_j = phi[j,]}
       }
     }
-    Mend=as.numeric(Sys.time())
-    if(trace){cat(paste("M Step Time Elapsed:",Mend-Mstart,"seconds.\n"))}
+    Mend=Sys.time()
+    if(trace){cat(paste("M Step Time Elapsed:",as.numeric(Mend-Mstart,units="secs"),"seconds.\n"))}
 
     for(j in mb_genes){
       if(Tau<=1 & a>6){if(Reduce("+",disc_ids_list[(a-6):(a-1)])[j]==0){next}}
@@ -1124,11 +1124,11 @@ EM_run <- function(ncores,X=NA, y, k,
 
     # E step
     if(trace){cat(paste("Tau:",Tau,"\n"))}
-    start_E = as.numeric(Sys.time())
+    start_E = Sys.time()
     Estep_fit=E_step(wts,l,pi,CEM,Tau,PP_filt)
     wts=Estep_fit$wts; keep=Estep_fit$keep; Tau=Estep_fit$Tau; CEM=Estep_fit$CEM
-    end_E = as.numeric(Sys.time())
-    if(trace){cat(paste("E Step Time Elapsed:",end_E-start_E,"seconds\n"))}
+    end_E = Sys.time()
+    if(trace){cat(paste("E Step Time Elapsed:",as.numeric(end_E-start_E,units="secs"),"seconds\n"))}
 
     # if any cluster has 0 samples to estimate with, set keep to all samples --> weight them w/ small 1e-50 weights
     if(k>1){if(any(rowSums(keep)==0)){
@@ -1180,8 +1180,8 @@ EM_run <- function(ncores,X=NA, y, k,
         cat(paste("phi:",phi[sel_gene,],"\n"))
       }
       cat(paste("Samp1: PP:",wts[,1],"\n"))
-      EMend = as.numeric(Sys.time())
-      cat(paste("EM iter",a,"time elapsed:",EMend-EMstart,"seconds.\n"))
+      EMend = Sys.time()
+      cat(paste("EM iter",a,"time elapsed:",as.numeric(EMend-EMstart,units="secs"),"seconds.\n"))
       cat("-------------------------------------\n")
     }
 
@@ -1248,7 +1248,7 @@ EM_run <- function(ncores,X=NA, y, k,
   }
 
   end_time <- Sys.time()
-  time_elap <- as.numeric(end_time)-as.numeric(start_time)
+  time_elap <- as.numeric(end_time-start_time,units="secs")
 
   if(cl_phi==0){
     phi = phi_g
