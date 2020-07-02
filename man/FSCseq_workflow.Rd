@@ -24,7 +24,8 @@ FSCseq_workflow(
   trace.prefix = "",
   nMB = 5,
   dir_name = "Saved_Results",
-  coding = "reference"
+  coding = "reference",
+  cleanup = T
 )
 }
 \arguments{
