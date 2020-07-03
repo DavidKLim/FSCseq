@@ -1374,6 +1374,9 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
     p=0
     coefs=matrix(fit$coefs[idx,unique_cls_ids],nrow=sum(idx))
     XX=cl_X
+    wts=matrix(0, nrow=k, ncol=n)
+    keep=matrix(1,nrow=k,ncol=n)
+    pi =pi_all[unique_cls_ids]
   }
 
   # table(init_cls,c(cls,cls_pred))
@@ -1503,7 +1506,7 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
       keep=Estep_fit$keep
       wts=Estep_fit$wts; Tau=Estep_fit$Tau
 
-      wts[,1:ncol(cts_train)] = fit$wts[unique_cls_ids,]
+      if(covars){ wts[,1:ncol(cts_train)] = fit$wts[unique_cls_ids,] }
 
       interm_cls[[a]] = apply(wts,2,which.max)
       # interm_ARI = adjustedRandIndex(interm_cls,c(cls,cls_pred))
