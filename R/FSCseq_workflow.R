@@ -278,8 +278,20 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
   n = n_train + n_pred
 
   if(!is.null(SF_train)){if(length(SF_train) != n_train){stop("SF_train must be length of ncol(cts_train).")}}
-  if(!is.null(batch_train)){if(length(batch_train) != n_train){stop("batch_train must be length ncol(cts_train).")}}
-  if(!is.null(batch_pred)){if(length(batch_pred) != n_pred){stop("batch_pred must be length ncol(cts_pred).")}}
+
+  if(!is.null(batch_train)){
+    if(length(batch_train) != n_train){stop("batch_train must be length ncol(cts_train).")}
+  }
+  if(!is.null(batch_pred)){
+    if(length(batch_pred) != n_pred){stop("batch_pred must be length ncol(cts_pred).")}
+  }
+  if(!is.null(batch_train) & !is.null(batch_pred)){ batch = c(batch_train,batch_pred)
+  } else if(is.null(batch_train) & !is.null(batch_pred)){ batch = batch_pred
+  } else if(!is.null(batch_train) & is.null(batch_pred)){ batch = batch_train
+  } else{ batch=NULL }
+
+  if(!is.numeric(batch)){batch = as.numeric(as.factor(batch)); batch_train = batch[1:n_train]; batch_pred=batch[(n_train+1):n]}
+
 
   filt_idx = res$processed.dat$idx
 
