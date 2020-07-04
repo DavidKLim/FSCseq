@@ -1526,8 +1526,18 @@ FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
 
   final_clusters = apply(wts,2,which.max)
 
+  if(covars){
+    pred_cls = final_clusters[(n_train+1):n]
+    train_wts = wts[,1:n_train]
+    pred_wts = wts[,(n_train+1):n]
+  }else{
+    pred_cls = final_clusters
+    train_wts = fit$wts[unique_cls_ids,]
+    pred_wts = wts
+  }
+
   return(list(train_cls=train_clusters,
-              pred_cls=final_clusters[(n_train+1):n],
-              train_wts=wts[,1:n_train],
-              pred_wts=wts[,(n_train+1):n]))
+              pred_cls=pred_cls,
+              train_wts=train_wts,
+              pred_wts=pred_wts))
 }
