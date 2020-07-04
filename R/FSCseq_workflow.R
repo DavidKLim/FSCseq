@@ -285,12 +285,15 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
   if(!is.null(batch_pred)){
     if(length(batch_pred) != n_pred){stop("batch_pred must be length ncol(cts_pred).")}
   }
-  if(!is.null(batch_train) & !is.null(batch_pred)){ batch = c(batch_train,batch_pred)
-  } else if(is.null(batch_train) & !is.null(batch_pred)){ batch = batch_pred
-  } else if(!is.null(batch_train) & is.null(batch_pred)){ batch = batch_train
-  } else{ batch=NULL }
+  if(!is.null(batch_train) & !is.null(batch_pred)){
+    batch = c(batch_train,batch_pred)
+    if(!is.numeric(batch)){batch = as.numeric(as.factor(batch)); batch_train = batch[1:n_train]; batch_pred=batch[(n_train+1):n]}
 
-  if(!is.numeric(batch)){batch = as.numeric(as.factor(batch)); batch_train = batch[1:n_train]; batch_pred=batch[(n_train+1):n]}
+  } else if(is.null(batch_train) & !is.null(batch_pred)){
+    if(!is.numeric(batch_pred)){batch_pred = as.numeric(as.factor(batch_pred))}
+  } else if(!is.null(batch_train) & is.null(batch_pred)){
+    if(!is.numeric(batch_train)){batch_train = as.numeric(as.factor(batch_train))}
+  }
 
 
   filt_idx = res$processed.dat$idx
