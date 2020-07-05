@@ -183,28 +183,28 @@ E_step<-function(wts,l,pi,CEM,Tau,PP_filt){
       set.seed(i) # for reproducibility. stabilizes param ests in beginning iterations
       draw_wts[,i] = rmultinom(1,1,wts[,i])
     }
-    # seed_mult=1
-    # # have one sample per cluster --> stability in CEM
-    # while(any(rowSums(draw_wts)==0)){
-    #   #if(trace){cat("Drawing again",seed_mult,"\n")}
-    #   for(i in 1:n){
-    #     set.seed(seed_mult*n+i)
-    #     for(c in 1:k){
-    #       if(wts[c,i]<=(1E-50*10^seed_mult) & seed_mult<=48){
-    #         wts[c,i]=1E-50*10^seed_mult
-    #       } else if(wts[c,i]>=(1-(1E-50*10^seed_mult)) & seed_mult<=48){
-    #         wts[c,i]=1-1E-50*10^seed_mult
-    #       }
-    #     }
-    #     draw_wts[,i] = rmultinom(1,1,wts[,i])
-    #   }
-    #   seed_mult=seed_mult+1
-    #   # if no sample in one cluster still, have last sample's PP=1/k for all cls
-    #   if(seed_mult>250){
-    #     draw_wts[,n]=rep(1/k,k)
-    #     break
-    #   }
-    # }
+    seed_mult=1
+    # have one sample per cluster --> stability in CEM
+    while(any(rowSums(draw_wts)==0)){
+      #if(trace){cat("Drawing again",seed_mult,"\n")}
+      for(i in 1:n){
+        set.seed(seed_mult*n+i)
+        for(c in 1:k){
+          if(wts[c,i]<=(1E-50*10^seed_mult) & seed_mult<=48){
+            wts[c,i]=1E-50*10^seed_mult
+          } else if(wts[c,i]>=(1-(1E-50*10^seed_mult)) & seed_mult<=48){
+            wts[c,i]=1-1E-50*10^seed_mult
+          }
+        }
+        draw_wts[,i] = rmultinom(1,1,wts[,i])
+      }
+      seed_mult=seed_mult+1
+      # if no sample in one cluster still, have last sample's PP=1/k for all cls
+      if(seed_mult>250){
+        draw_wts[,n]=rep(1/k,k)
+        break
+      }
+    }
     wts=draw_wts
   }
 
