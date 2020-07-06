@@ -1281,8 +1281,10 @@ EM_run <- function(ncores,X=NA, y, k,
 #'
 #' @param X (optional) design matrix of dimension n by p
 #' @param fit FSCseq results object
-#' @param cts_pred prediction/test count data matrix of dimension g by n_pred
-#' @param SF_pred vector of length n_pred, size factors for prediction subjects
+#' @param cts_train Training count data matrix of dimension g by n_train
+#' @param cts_pred Prediction/test count data matrix of dimension g by n_pred
+#' @param SF_train Vector of length n_train, size factors for training subjects. Can be accessed from the fit.
+#' @param SF_pred Vector of length n_pred, size factors for prediction subjects
 #'
 #' @return list containing outputs
 #' final_clusters: vector of length n of resulting clusters,
@@ -1292,15 +1294,13 @@ EM_run <- function(ncores,X=NA, y, k,
 #' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @export
-FSCseq_predict <- function(X=NULL, p_covar=0, fit, cts_train=NULL,
+FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
                           cts_pred, SF_train=NULL, SF_pred){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
   # fit: Output of EM
   # cts_pred: Data to perform prediction on
   # SF_pred: SF's of new data
   # offsets: Additional offsets per sample can be incorporated
 
-  # LATER::: p_covar: indicate which of the first gammas are non-batch covariates: need not be re-estimated.
-  ## RIGHT NOW:: estimating all non cluster-log2 mean covariates (batch and non-batch)
 
   covars = !is.null(X)
   idx=fit$discriminatory

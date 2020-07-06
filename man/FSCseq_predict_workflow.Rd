@@ -17,15 +17,23 @@ FSCseq_predict_workflow(
 )
 }
 \arguments{
-\item{cts_pred}{integer matrix, count matrix of dimension g by n_pred. Must be integers (counts)}
+\item{res}{Fitted FSCseq result object.}
 
-\item{X}{covariates (optional)}
+\item{X_covar_train}{Optional covariate matrix for training samples (optional additional covariates, except batch)}
 
-\item{fit}{FSCseq results object. Accessed by $results from FSCseq_workflow object}
+\item{cts_train}{Counts matrix of training samples.}
 
-\item{cts}{Training set count matrix, dimension g by n. Used as pseudo-reference to calculate prediction set size factors}
+\item{SF_train}{Size factors of training samples (optional. If not supplied, can be accessed from res)}
 
-\item{idx}{boolean vector: TRUE if gene passed pre-filtering step}
+\item{batch_train}{Batch information for training samples (optional)}
+
+\item{X_covar_pred}{Optional covariate matrix for prediction samples (optional additional covariates, except batch)}
+
+\item{cts_pred}{Counts matrix of prediction samples. Should be same dimension as cts_train}
+
+\item{batch_pred}{Batch information for prediction samples (optional)}
+
+\item{coding}{Coding scheme for batch (categorical). Default is reference coding.}
 }
 \value{
 list with processed.dat.pred (processed prediction data), and prediction results
@@ -35,9 +43,8 @@ Full FSCseq workflow based on minimal working defaults
 }
 \examples{
 sim.dat = simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
-\dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
-\dontrun{proc.dat = FSCseq_results$processed.dat}
-\dontrun{pred_results = FSCseq_predict_workflow(fit=FSCseq_results$results$fit, cts=sim.dat$cts, cts_pred=sim.dat$cts_pred, idx=proc.dat$idx)}
+\dontrun{res = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+\dontrun{pred_results = FSCseq_predict_workflow(res=res, cts_train=sim.dat$cts_train, batch_train=batch, cts_pred=sim.dat$cts_pred, batch_pred=batch_pred)}
 
 }
 \references{

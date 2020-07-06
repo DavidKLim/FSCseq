@@ -57,6 +57,8 @@ FSCseq_workflow(
 
 \item{OS_save}{logical, TRUE: saves progress of computationally costly warm starts (multiple initializations). Default is TRUE}
 
+\item{tune_save}{logical, TRUE: saves progress of penalty parameter searches. This may save many files, depending on the grid of values searched for lambda and alpha. Default is FALSE}
+
 \item{trace}{logical, TRUE: output diagnostic messages, FALSE (default): don't output}
 
 \item{trace.prefix}{(optional) string, prefix of file name to store trace output.}
@@ -64,6 +66,10 @@ FSCseq_workflow(
 \item{nMB}{integer, number of minibatches to use in M step. Default is 5}
 
 \item{dir_name}{string, name of directory specified for saved results (if OS_save = TRUE) and diagnostics (if trace = TRUE)}
+
+\item{coding}{string, "reference" or "cellmeans" coding for batch. Doesn't matter if batch effects are not adjusted.}
+
+\item{cleanup}{logical, if OS_save=TRUE or tune_save=TRUE, remove all saved files after convergence.}
 }
 \value{
 list with K, cls, discriminatory, and fit

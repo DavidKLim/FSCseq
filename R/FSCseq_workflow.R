@@ -16,10 +16,13 @@
 #' @param lambda_search numeric vector, values of lambda to be searched. Default is seq(0.25,3,0.25)
 #' @param alpha_search numeric vector, values of alpha to be searched. Default is c(0.01,seq(0.05,0.50,0.05))
 #' @param OS_save logical, TRUE: saves progress of computationally costly warm starts (multiple initializations). Default is TRUE
+#' @param tune_save logical, TRUE: saves progress of penalty parameter searches. This may save many files, depending on the grid of values searched for lambda and alpha. Default is FALSE
 #' @param trace logical, TRUE: output diagnostic messages, FALSE (default): don't output
 #' @param trace.prefix (optional) string, prefix of file name to store trace output.
 #' @param nMB integer, number of minibatches to use in M step. Default is 5
 #' @param dir_name string, name of directory specified for saved results (if OS_save = TRUE) and diagnostics (if trace = TRUE)
+#' @param coding string, "reference" or "cellmeans" coding for batch. Doesn't matter if batch effects are not adjusted.
+#' @param cleanup logical, if OS_save=TRUE or tune_save=TRUE, remove all saved files after convergence.
 #'
 #' @return list with K, cls, discriminatory, and fit
 #'
@@ -228,11 +231,15 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 #'
 #' Full FSCseq workflow based on minimal working defaults
 #'
-#' @param X covariates (optional)
-#' @param fit FSCseq results object. Accessed by $results from FSCseq_workflow object
-#' @param cts Training set count matrix, dimension g by n. Used as pseudo-reference to calculate prediction set size factors
-#' @param cts_pred integer matrix, count matrix of dimension g by n_pred. Must be integers (counts)
-#' @param idx boolean vector: TRUE if gene passed pre-filtering step
+#' @param res Fitted FSCseq result object.
+#' @param X_covar_train Optional covariate matrix for training samples (optional additional covariates, except batch)
+#' @param cts_train Counts matrix of training samples.
+#' @param SF_train Size factors of training samples (optional. If not supplied, can be accessed from res)
+#' @param batch_train Batch information for training samples (optional)
+#' @param X_covar_pred Optional covariate matrix for prediction samples (optional additional covariates, except batch)
+#' @param cts_pred Counts matrix of prediction samples. Should be same dimension as cts_train
+#' @param batch_pred Batch information for prediction samples (optional)
+#' @param coding Coding scheme for batch (categorical). Default is reference coding.
 #'
 #' @return list with processed.dat.pred (processed prediction data), and prediction results
 #'
@@ -241,35 +248,13 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 #'
 #' @examples
 #' sim.dat = simulateData(B=1, g=10000, K=2, n=50, LFCg=1, pDEg=0.05, beta0=12, phi0=0.35, nsims=1, save_file=F)[[1]]
-#' \dontrun{FSCseq_results = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
-#' \dontrun{proc.dat = FSCseq_results$processed.dat}
-#' \dontrun{pred_results = FSCseq_predict_workflow(fit=FSCseq_results$results$fit, cts=sim.dat$cts, cts_pred=sim.dat$cts_pred, idx=proc.dat$idx)}
+#' \dontrun{res = FSCseq_workflow(cts=sim.dat$cts, K_search=c(2:3), lambda_search=c(1.0, 1.5), alpha_search=c(0.1, 0.2))}
+#' \dontrun{pred_results = FSCseq_predict_workflow(res=res, cts_train=sim.dat$cts_train, batch_train=batch, cts_pred=sim.dat$cts_pred, batch_pred=batch_pred)}
 #'
 #' @export
-# FSCseq_predict_workflow = function(X = NULL, fit, cts, cts_pred, idx) {
-  # add cts_train, batch_train, batch_pred, SF_train into input
-  # this function will calculate SF_pred
-  # create X_train and X_pred
-  # incorporating covariates (train set) and covariates (pred set)
-  # need to incorporate option not batch-adjust (in FSCseq.R too: make sure X_train=NULL and X_pred=NULL works)
-  # in FSCseq.R: incorporate covariates in X_train and X_pred along with batch
-
-  ############################################ OLD ###################################################
-
-  # geoMeans = exp(rowMeans(log(cts)))   # input custom geometric means (relative to training set)
-  # cat("Computing size factors...\n")
-  # processed.dat.pred = FSCseq::processData(y = cts_pred, geoMeans = geoMeans,
-  #                                          med_filt = FALSE, MAD_filt = FALSE)
-  # SF_pred = processed.dat.pred$size_factors
-  #
-  # cat("Computing predictive posterior probabilities...\n")
-  # res_pred = FSCseq_predict(X = NULL, fit = fit, cts_pred = cts_pred[idx, ], SF_pred = SF_pred)
-  #
-  # return(list(processed.dat.pred = processed.dat.pred, results = res_pred))
-
-  ############################################ NEW ###################################################
 FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_train=NULL, batch_train=NULL,
                                    X_covar_pred = NULL, cts_pred, batch_pred=NULL, coding="reference") {
+  ## we recommend that the #samples in batch_pred be >=25
   #### fit = straight from FSCseq_workflow output
   #### X_train and X_pred are covariates
   # idx: ids filtered by rowMedians and MAD
@@ -382,6 +367,7 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
                             cts_pred=cts_pred[filt_idx,], SF_train=SF_train, SF_pred=SF_pred)
   covariates = list(batch_train = batch_train,
                     batch_pred = batch_pred,
+                    batch=batch,
                     X_batch = X_batch,
                     X_covar_train = X_covar_train,
                     X_covar_pred = X_covar_pred)

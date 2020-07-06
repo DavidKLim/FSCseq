@@ -6,7 +6,6 @@
 \usage{
 FSCseq_predict(
   X = NULL,
-  p_covar = 0,
   fit,
   cts_train = NULL,
   cts_pred,
@@ -19,9 +18,13 @@ FSCseq_predict(
 
 \item{fit}{FSCseq results object}
 
-\item{cts_pred}{prediction/test count data matrix of dimension g by n_pred}
+\item{cts_train}{Training count data matrix of dimension g by n_train}
 
-\item{SF_pred}{vector of length n_pred, size factors for prediction subjects}
+\item{cts_pred}{Prediction/test count data matrix of dimension g by n_pred}
+
+\item{SF_train}{Vector of length n_train, size factors for training subjects. Can be accessed from the fit.}
+
+\item{SF_pred}{Vector of length n_pred, size factors for prediction subjects}
 }
 \value{
 list containing outputs
