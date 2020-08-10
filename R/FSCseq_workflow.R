@@ -235,10 +235,10 @@ FSCseq_workflow = function(cts, ncores = 1, batch = NULL, X = NULL, true_cls = N
 #' @param X_covar_train Optional covariate matrix for training samples (optional additional covariates, except batch)
 #' @param cts_train Counts matrix of training samples.
 #' @param SF_train Size factors of training samples (optional. If not supplied, can be accessed from res)
-#' @param batch_train Batch information for training samples (optional)
+#' @param batch_train Batch information for training samples (optional).
 #' @param X_covar_pred Optional covariate matrix for prediction samples (optional additional covariates, except batch)
 #' @param cts_pred Counts matrix of prediction samples. Should be same dimension as cts_train
-#' @param batch_pred Batch information for prediction samples (optional)
+#' @param batch_pred Batch information for prediction samples (optional). In estimating the new prediction batch effect, we recommend users to have at least 3-5 samples per cluster per batch for accurate estimation.
 #' @param coding Coding scheme for batch (categorical). Default is reference coding.
 #'
 #' @return list with processed.dat.pred (processed prediction data), and prediction results

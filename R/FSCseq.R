@@ -1285,6 +1285,8 @@ EM_run <- function(ncores,X=NA, y, k,
 #' @param cts_pred Prediction/test count data matrix of dimension g by n_pred
 #' @param SF_train Vector of length n_train, size factors for training subjects. Can be accessed from the fit.
 #' @param SF_pred Vector of length n_pred, size factors for prediction subjects
+#' @param maxit Maximum number of iterations to run if prediction batches are estimated, default is 100.
+#' @param eps Tolerance for relative change in Q function convergence criterion if prediction batches are estimated, default is 1e-4.
 #'
 #' @return list containing outputs
 #' final_clusters: vector of length n of resulting clusters,
@@ -1295,7 +1297,7 @@ EM_run <- function(ncores,X=NA, y, k,
 #'
 #' @export
 FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
-                          cts_pred, SF_train=NULL, SF_pred){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
+                          cts_pred, SF_train=NULL, SF_pred, maxit=100, eps=1e-4){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
   # fit: Output of EM
   # cts_pred: Data to perform prediction on
   # SF_pred: SF's of new data
@@ -1396,7 +1398,7 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
   #lambda=fit$lambda; alpha=fit$alpha    # not estimating beta, so penalty parameter values don't matter
   lambda=0; alpha=0
 
-  nits=ifelse(covars,100,1)
+  nits=ifelse(covars, maxit, 1)    # 1 iteration if no covariates (no prediction batch effects estimated), maxit otherwise
   # Tau=ifelse(covars,g^2,1); CEM=T
   Tau=1; CEM=F
 
@@ -1407,6 +1409,7 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
 
   interm_cls = list()
   delta_cls = rep(NA,nits-1)
+  Q = rep(NA,nits)
   for(a in 1:nits){
     if(covars){
       par_X=list(); temp_list=list(); nits_IRLS=rep(NA,g); nits_CDA=rep(NA,g)
@@ -1486,19 +1489,29 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
 
       # nb log(f_k(y_i))
       l<-matrix(0,nrow=k,ncol=n)
+      # if(covars){
+      #   covar_coefs = matrix(coefs[,-(1:k)],ncol=p)
+      #   cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
+      # } else {cov_eff=matrix(0,nrow=n,ncol=g)}
+      # for(i in 1:n){
+      #   for(c in 1:k){
+      #     if(cl_phi){
+      #       l[c,i]<-sum(dnbinom(cts[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
+      #     } else if(!cl_phi){
+      #       l[c,i]<-sum(dnbinom(cts[,i],size=1/phi,mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
+      #     }
+      #   }    # subtract out 0.1 that was added earlier
+      # }
       if(covars){
-        covar_coefs = matrix(coefs[,-(1:k)],ncol=p)
-        cov_eff = X %*% t(covar_coefs)         # n x g matrix of covariate effects
-      } else {cov_eff=matrix(0,nrow=n,ncol=g)}
-
-      for(i in 1:n){
-        for(c in 1:k){
-          if(cl_phi){
-            l[c,i]<-sum(dnbinom(cts[,i],size=1/phi[,c],mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))    # posterior log like, include size_factor of subj
-          } else if(!cl_phi){
-            l[c,i]<-sum(dnbinom(cts[,i],size=1/phi,mu=2^(coefs[,c] + cov_eff[i,] + offsets[i]),log=TRUE))
-          }
-        }    # subtract out 0.1 that was added earlier
+        covar_coefs = matrix(coefs[,(k+1):(k+p)],ncol=p)
+        cov_eff = covar_coefs %*% t(X)         # g x n matrix of covariate effects
+      } else {cov_eff=matrix(0,nrow=g,ncol=n)}
+      offset_eff = matrix(offsets,nrow=g,ncol=n,byrow=T)
+      for(c in 1:k){
+        l[c,] = colSums(
+          dnbinom(cts, size=1/phi[,c],
+                  mu=2^(coefs[,c] + cov_eff + offset_eff),log=TRUE)
+        )
       }
 
       Estep_fit=E_step(wts,l,pi,CEM=CEM,Tau,1e-3)
@@ -1509,16 +1522,24 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
       if(covars){ wts[,1:ncol(cts_train)] = fit$wts[unique_cls_ids,] }
 
       interm_cls[[a]] = apply(wts,2,which.max)
-      # interm_ARI = adjustedRandIndex(interm_cls,c(cls,cls_pred))
-      # interm_message = sprintf("it%d ARI: %f", a, interm_ARI)
-      # print(paste(interm_message,"Tau:",Tau))
 
-      # sum number of samples whose cluster labels change, and break if no change for 10 iterations
-      if(a>1){
-        delta_cls[a-1] = sum((interm_cls[[a]] != interm_cls[[a-1]])^2)
-      }
-      if(a>10){
-        if(all(delta_cls[(a-10):(a-1)] == 0)){
+      ### BREAK CRITERION ##
+      #Cluster-label based
+      #sum number of samples whose cluster labels change, and break if no change for 10 iterations
+      # if(a>1){
+      #   delta_cls[a-1] = sum((interm_cls[[a]] != interm_cls[[a-1]])^2)
+      # }
+      # if(a>10){
+      #   if(all(delta_cls[(a-10):(a-1)] == 0)){
+      #     break
+      #   }
+      # }
+
+      #Q function based
+      #if relative change of the Q function is within eps (default = 1e-4)
+      Q[a]<- (log(pi)%*%rowSums(wts)) + sum(wts*l)
+      if(a>5){
+        if(abs((Q[a]-Q[a-5])/Q[a-5]) < eps){
           break
         }
       }
