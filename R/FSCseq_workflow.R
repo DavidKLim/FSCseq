@@ -262,6 +262,12 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
   n_pred = ncol(cts_pred)
   n = n_train + n_pred
 
+  if(res$results$K == ncol(res$results$fit$coefs) & !is.null(batch_train)){  ### if no batch effect estimated in training, but batch input
+    res$results$fit$coefs = cbind(res$results$fit$coefs, 0)        # initialize unestimated batch effect at 0
+  }
+  # should have something where if all(batch_train==batch_train[1]) then no batch effects were measured
+
+
   if(!is.null(SF_train)){if(length(SF_train) != n_train){stop("SF_train must be length of ncol(cts_train).")}}
 
   if(!is.null(batch_train)){
@@ -312,7 +318,7 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
     # no training batch info, no prediction batch info
     B_train=0; B_pred=0
     cat("No batch info in data (training or prediction). Not adjusting for batch effects in prediction...\n")
-    X_batch = NULL
+    X_batch = NULL; batch=NULL
   }else{
     if(is.null(batch_train) & !is.null(batch_pred)){
       # no training batch info, yes prediction batch info
@@ -351,6 +357,7 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
 
   if(is.null(X_batch) & is.null(X_covar)){
     X=NULL
+    print("No covariates to adjust for!")
   }else if(!is.null(X_batch) & is.null(X_covar)){
     X=X_batch
   }else if(is.null(X_batch) & !is.null(X_covar)){
@@ -361,8 +368,11 @@ FSCseq_predict_workflow = function(res, X_covar_train = NULL, cts_train, SF_trai
 
   cat("Computing predictive posterior probabilities...\n")
 
+  # res$results$fit$coefs = cbind(res$results$fit$coefs,matrix(0,nrow=nrow(res$results$fit$coefs),ncol=if(coding=="reference"){B-1}else if(coding=="cellmeans"){B}))
+
+  if(all(is.null(SF_train))){SF_train = res$results$fit$size_factors}
   #fit=res$results$fit; cts_train=cts; batch_train=batch
-  res_pred = FSCseq::FSCseq_predict(X=X, p_covar=p_covar,
+  res_pred = FSCseq::FSCseq_predict(X=X, #p_covar=p_covar,
                             fit=res$results$fit, cts_train=cts_train[filt_idx,], #batch_train=batch_train, batch_pred=batch_pred,
                             cts_pred=cts_pred[filt_idx,], SF_train=SF_train, SF_pred=SF_pred)
   covariates = list(batch_train = batch_train,

@@ -10,7 +10,9 @@ FSCseq_predict(
   cts_train = NULL,
   cts_pred,
   SF_train = NULL,
-  SF_pred
+  SF_pred,
+  maxit = 100,
+  eps = 1e-04
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ FSCseq_predict(
 \item{SF_train}{Vector of length n_train, size factors for training subjects. Can be accessed from the fit.}
 
 \item{SF_pred}{Vector of length n_pred, size factors for prediction subjects}
+
+\item{maxit}{Maximum number of iterations to run if prediction batches are estimated, default is 100.}
+
+\item{eps}{Tolerance for relative change in Q function convergence criterion if prediction batches are estimated, default is 1e-4.}
 }
 \value{
 list containing outputs

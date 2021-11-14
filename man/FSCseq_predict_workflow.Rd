@@ -25,13 +25,13 @@ FSCseq_predict_workflow(
 
 \item{SF_train}{Size factors of training samples (optional. If not supplied, can be accessed from res)}
 
-\item{batch_train}{Batch information for training samples (optional)}
+\item{batch_train}{Batch information for training samples (optional).}
 
 \item{X_covar_pred}{Optional covariate matrix for prediction samples (optional additional covariates, except batch)}
 
 \item{cts_pred}{Counts matrix of prediction samples. Should be same dimension as cts_train}
 
-\item{batch_pred}{Batch information for prediction samples (optional)}
+\item{batch_pred}{Batch information for prediction samples (optional). In estimating the new prediction batch effect, we recommend users to have at least 3-5 samples per cluster per batch for accurate estimation.}
 
 \item{coding}{Coding scheme for batch (categorical). Default is reference coding.}
 }

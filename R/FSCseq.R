@@ -1296,13 +1296,12 @@ EM_run <- function(ncores,X=NA, y, k,
 #' @references \url{https://github.com/DavidKLim/FSCseq}
 #'
 #' @export
-FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
-                          cts_pred, SF_train=NULL, SF_pred, maxit=100, eps=1e-4){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
+FSCseq_predict <- function(X=NULL, fit, cts_train=NULL, cts_pred,
+                           SF_train=NULL, SF_pred, maxit=100, eps=1e-4){   # NEED TO CHANGE ORDER OF INPUT IN FSCseq_workflow
   # fit: Output of EM
   # cts_pred: Data to perform prediction on
   # SF_pred: SF's of new data
   # offsets: Additional offsets per sample can be incorporated
-
 
   covars = !is.null(X)
   idx=fit$discriminatory
@@ -1321,10 +1320,18 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
   n_pred = ncol(cts_pred)
   n = ncol(cts)
   g = sum(idx)
+  print(paste("n:",n,", g:",g))
   pi_all = fit$pi  # including penalized out clusters here. pi is changed later
+  coefs = fit$coefs
 
   # B = length(unique(batch_train))
-  p_train = ncol(fit$coefs) - length(pi_all)   # number of non-log2 cluster means estimated in training
+  if(is.null(X)){
+    p_train = ncol(fit$coefs) - length(pi_all)   # number of non-log2 cluster means estimated in training
+  }else{p_train=ncol(X)}
+
+  # coefs2 = matrix(0,nrow=nrow(fit$coefs),ncol=ncol(fit$coefs)+p_train)
+  # coefs2[,1:ncol(fit$coefs)] = fit$coefs
+  # fit$coefs = coefs2
 
   # apply(table(fit$clusters,cls),2,function(x){which(x==max(x))})      # returns
   # cls_match_ids
@@ -1353,8 +1360,11 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
     coefs[,1:(k+p_train)] = cbind(betas,gammas)
 
     # initialize estimates of new batch effects as the mean of the other batch effects across batches for each gene
-    coefs[,(k+p_train+1):ncol(coefs)] <- if((length(pi_all)+1) == ncol(fit$coefs)){ fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)] } else{rowMeans(fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)])}
+    # coefs[,(k+p_train+1):ncol(coefs)] <- if((length(pi_all)+1) == ncol(fit$coefs)){ fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]
+    #                                                                                 } else{ rowMeans(fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]) }
 
+    # coefs = cbind(coefs, if((length(pi_all)+1) == ncol(fit$coefs)){ fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]
+    # } else{ rowMeans(fit$coefs[idx,(length(pi_all)+1):ncol(fit$coefs)]) })
     ## Initialize weights here (how do I initialize for new samples??):
     wts=matrix(0, nrow=k, ncol=n)
 
@@ -1387,9 +1397,9 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
   # adjustedRandIndex(init_cls,apply(wts,2,which.max))
 
   # fit is the output object from the EM() function
-  phi=if(cl_phi==0){matrix(fit$phi[idx], nrow=sum(idx), ncol=k)}else{matrix(fit$phi[idx,],nrow=sum(idx))}
+  phi=if(cl_phi==0){matrix(fit$phi[idx], nrow=sum(idx), ncol=k)}else{matrix(fit$phi[idx,],nrow=sum(idx), ncol=k)}
 
-  if(is.null(SF_train)){SF_train = fit$size_factors}
+  if(!is.null(SF_train)){SF_train = fit$size_factors}
   offsets=log2(c(SF_train,SF_pred))
 
   est_beta = rep(0,g)
@@ -1507,10 +1517,32 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
         cov_eff = covar_coefs %*% t(X)         # g x n matrix of covariate effects
       } else {cov_eff=matrix(0,nrow=g,ncol=n)}
       offset_eff = matrix(offsets,nrow=g,ncol=n,byrow=T)
+      # print("phi")
+      # print(dim(phi))
+      # print(head(phi))
+      # print("coefs")
+      # print(dim(coefs))
+      # print(head(coefs))
+      # print('cov_eff')
+      # print(dim(cov_eff))
+      # print(head(cov_eff))
+      # print("offset_eff")
+      # print(dim(offset_eff))
+      # print(head(offset_eff))
+      # print("l")
+      # print(dim(l))
+      # print("mu")
+      # c=1
+      # print(dim(2^(coefs[,c] + cov_eff + offset_eff)))
+      # print(head(2^(coefs[,c] + cov_eff + offset_eff)))
+      # print("cts")
+      # print(head(cts))
+      # print(dim(cts))
       for(c in 1:k){
+        size = 1/phi[,c]
+        mus = 2^(coefs[,c] + cov_eff + offset_eff)
         l[c,] = colSums(
-          dnbinom(cts, size=1/phi[,c],
-                  mu=2^(coefs[,c] + cov_eff + offset_eff),log=TRUE)
+          dnbinom(cts, size=size, mu=mus, log=TRUE)
         )
       }
 
@@ -1560,5 +1592,6 @@ FSCseq_predict <- function(X=NULL, fit, cts_train=NULL,
   return(list(train_cls=train_clusters,
               pred_cls=pred_cls,
               train_wts=train_wts,
-              pred_wts=pred_wts))
+              pred_wts=pred_wts,
+              coefs=coefs))
 }
