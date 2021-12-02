@@ -1017,9 +1017,9 @@ EM_run <- function(ncores,X=NA, y, k,
       if(a>6){
         # set relative change in phi across 5 iterations
         if(cl_phi==1){
-          diff_phi[a,j]=mean(abs(phi[j,]-phi_list[[a-5]][j,])/phi_list[[a-5]][j,])
+          diff_phi[a,j]=mean(abs(phi[j,]-phi_list[[a-5]][j,])/(phi_list[[a-5]][j,] + 0.001))
         } else if(cl_phi==0){
-          diff_phi[a,j]=abs(phi_g[j]-phi_list[[a-5]][j,1])/phi_list[[a-5]][j,1]
+          diff_phi[a,j]=abs(phi_g[j]-phi_list[[a-5]][j,1])/(phi_list[[a-5]][j,1] + 0.001)
         }
 
         if(diff_phi[a,j]<0.01 & all(current_clusters==prev_clusters)){
